@@ -1,71 +1,71 @@
-// File: app/questions/page.tsx
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { XMarkIcon } from '@heroicons/react/24/outline'; // install @heroicons/react if needed
-
-// Define the type for a single question
-interface Question {
-  id: string;
-  question: string;
-  answer: string;
-  creator: string;
-}
-/*
- 1. Pick question data format
- 2. Make database
- 3. 
-*/
+import { useEffect, useState } from "react";
+import { Question } from "../api/trivia_questions/QuestionsDb";
 
 export default function QuestionsPage() {
-  // Example initial data; in real use, you might fetch this from an API
-  const [questions, setQuestions] = useState<Question[]>([
-    { id: '1', question: 'What is Next.js?', answer: 'A React framework', creator: 'Alice' },
-    { id: '2', question: 'What is TypeScript?', answer: 'A typed superset of JS', creator: 'Bob' },
-  ]);
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Handle deletion of a question
-  const handleDelete = (id: string) => {
-    setQuestions(prev => prev.filter(q => q.id !== id));
-  };
+  useEffect(() => {
+    async function fetchQuestions() {
+      try {
+        const res = await fetch("/api/trivia_questions"); // adjust API route if needed
+        if (!res.ok) {
+          throw new Error("Failed to fetch questions");
+        }
+        const data: Question[] = await res.json();
+        setQuestions(data);
+      } catch (err: any) {
+        setError(err.message || "Unknown error");
+      } finally {
+        setLoading(false);
+      }
+    }
 
+    fetchQuestions();
+  }, []);
+
+  if (loading) return <div className="p-4 text-center">Loading questions...</div>;
+  if (error) return <div className="p-4 text-center text-red-500">{error}</div>;
+// create a new question on a nother page
   return (
     <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">Questions</h1>
+      <h1 className="text-2xl font-bold mb-4">Trivia Questions</h1>
       <div className="overflow-x-auto">
-        <table className="min-w-full border border-gray-200">
-          <thead className="bg-gray-100">
-            <tr>
-              <th className="px-4 py-2 text-left">Question</th>
-              <th className="px-4 py-2 text-left">Answer</th>
-              <th className="px-4 py-2 text-left">Creator</th>
-              <th className="px-4 py-2 text-center">Delete</th>
+        <table className="min-w-full table-auto border-collapse border border-gray-300">
+          <thead>
+            <tr className="bg-gray-100">
+              <th className="border border-gray-300 px-4 py-2 text-left">ID</th>
+              <th className="border border-gray-300 px-4 py-2 text-left">Question</th>
+              <th className="border border-gray-300 px-4 py-2 text-left">Answer</th>
+              <th className="border border-gray-300 px-4 py-2 text-left">Multiple Choice</th>
+              <th className="border border-gray-300 px-4 py-2 text-left">Verse References</th>
+              <th className="border border-gray-300 px-4 py-2 text-left">Difficulty</th>
+              <th className="border border-gray-300 px-4 py-2 text-left">Attempts</th>
+              <th className="border border-gray-300 px-4 py-2 text-left">Correct Attempts</th>
             </tr>
           </thead>
           <tbody>
-            {questions.map(q => (
-              <tr key={q.id} className="border-t border-gray-200 hover:bg-gray-50">
-                <td className="px-4 py-2">{q.question}</td>
-                <td className="px-4 py-2">{q.answer}</td>
-                <td className="px-4 py-2">{q.creator}</td>
-                <td className="px-4 py-2 text-center">
-                  <button
-                    onClick={() => handleDelete(q.id)}
-                    className="text-red-500 hover:text-red-700 transition-colors"
-                    aria-label="Delete question"
-                  >
-                    <XMarkIcon className="w-5 h-5 inline" />
-                  </button>
+            {questions.map((q) => (
+              <tr key={q.id} className="hover:bg-gray-50">
+                <td className="border border-gray-300 px-4 py-2">{q.id}</td>
+                <td className="border border-gray-300 px-4 py-2">{q.question}</td>
+                <td className="border border-gray-300 px-4 py-2">{q.answer}</td>
+                <td className="border border-gray-300 px-4 py-2">
+                  {q.multiple_choice_answers.length > 0
+                    ? q.multiple_choice_answers.map((item) => item.options.join(", ")).join(" | ")
+                    : "—"}
                 </td>
+                <td className="border border-gray-300 px-4 py-2">
+                  {q.verse_references.length > 0 ? q.verse_references.join(", ") : "—"}
+                </td>
+                <td className="border border-gray-300 px-4 py-2">{q.difficulty}</td>
+                <td className="border border-gray-300 px-4 py-2">{q.attempts}</td>
+                <td className="border border-gray-300 px-4 py-2">{q.correct_attempts}</td>
               </tr>
             ))}
-            {questions.length === 0 && (
-              <tr>
-                <td colSpan={4} className="text-center py-4 text-gray-500">
-                  No questions available
-                </td>
-              </tr>
-            )}
           </tbody>
         </table>
       </div>
