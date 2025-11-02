@@ -40,6 +40,8 @@ export async function POST(request: NextRequest) {
       difficulty: body.difficulty,
       attempts: 0,
       correct_attempts: 0,
+      upvotes: 0,
+      downvotes: 0,
     };
 
     const inserted = await insertQuestion(newQuestion);
@@ -82,6 +84,8 @@ export async function PATCH(request: NextRequest) {
       difficulty: body.difficulty ?? 1,
       attempts: body.attempts ?? 0,
       correct_attempts: body.correct_attempts ?? 0,
+      upvotes: body.upvotes ?? 0,
+      downvotes: body.downvotes ?? 0,
     };
 
     const result = await updateQuestion(updatedQuestion);

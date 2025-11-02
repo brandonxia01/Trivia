@@ -11,10 +11,8 @@ export default function QuestionsPage() {
   useEffect(() => {
     async function fetchQuestions() {
       try {
-        const res = await fetch("/api/trivia_questions"); // adjust API route if needed
-        if (!res.ok) {
-          throw new Error("Failed to fetch questions");
-        }
+        const res = await fetch("/api/trivia_questions");
+        if (!res.ok) throw new Error("Failed to fetch questions");
         const data: Question[] = await res.json();
         setQuestions(data);
       } catch (err: any) {
@@ -29,7 +27,7 @@ export default function QuestionsPage() {
 
   if (loading) return <div className="p-4 text-center">Loading questions...</div>;
   if (error) return <div className="p-4 text-center text-red-500">{error}</div>;
-// create a new question on a nother page
+
   return (
     <div className="p-6">
       <h1 className="text-2xl font-bold mb-4">Trivia Questions</h1>
@@ -45,6 +43,8 @@ export default function QuestionsPage() {
               <th className="border border-gray-300 px-4 py-2 text-left">Difficulty</th>
               <th className="border border-gray-300 px-4 py-2 text-left">Attempts</th>
               <th className="border border-gray-300 px-4 py-2 text-left">Correct Attempts</th>
+              <th className="border border-gray-300 px-4 py-2 text-left">Upvotes</th>
+              <th className="border border-gray-300 px-4 py-2 text-left">Downvotes</th>
             </tr>
           </thead>
           <tbody>
@@ -64,6 +64,8 @@ export default function QuestionsPage() {
                 <td className="border border-gray-300 px-4 py-2">{q.difficulty}</td>
                 <td className="border border-gray-300 px-4 py-2">{q.attempts}</td>
                 <td className="border border-gray-300 px-4 py-2">{q.correct_attempts}</td>
+                <td className="border border-gray-300 px-4 py-2">{q.upvotes}</td>
+                <td className="border border-gray-300 px-4 py-2">{q.downvotes}</td>
               </tr>
             ))}
           </tbody>

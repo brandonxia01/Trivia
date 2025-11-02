@@ -14,6 +14,8 @@ export interface Question {
   difficulty: number;
   attempts: number;
   correct_attempts: number;
+  upvotes: number;
+  downvotes: number;
 }
 
 export function mapQuestion(row: any): Question {
@@ -29,6 +31,8 @@ export function mapQuestion(row: any): Question {
     difficulty: row.difficulty ?? 1,
     attempts: row.attempts ?? 0,
     correct_attempts: row.correct_attempts ?? 0,
+    upvotes: row.upvotes ?? 0,
+    downvotes: row.downvotes ?? 0,
   };
 }
 
