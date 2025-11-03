@@ -42,6 +42,7 @@ export async function POST(request: NextRequest) {
       correct_attempts: 0,
       upvotes: 0,
       downvotes: 0,
+      verified: false,
     };
 
     const inserted = await insertQuestion(newQuestion);
@@ -86,6 +87,7 @@ export async function PATCH(request: NextRequest) {
       correct_attempts: body.correct_attempts ?? 0,
       upvotes: body.upvotes ?? 0,
       downvotes: body.downvotes ?? 0,
+      verified: body.verified ?? false,
     };
 
     const result = await updateQuestion(updatedQuestion);

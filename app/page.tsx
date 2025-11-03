@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Question } from "./api/trivia_questions/QuestionsDb";
+import { Question, MultipleChoiceAnswer } from "./api/trivia_questions/QuestionsDb";
 import { bibleBookTags, getBooksForTag } from "./utils/BibleBookTags";
+import BibleVerseSelector from "./components/BibleVerseSelector";
 
 export default function RandomQuestionPage() {
   const [question, setQuestion] = useState<Question | null>(null);
@@ -17,7 +18,18 @@ export default function RandomQuestionPage() {
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [minDifficulty, setMinDifficulty] = useState(1);
   const [maxDifficulty, setMaxDifficulty] = useState(10);
-  const [showFilters, setShowFilters] = useState(false); // new state
+  const [showFilters, setShowFilters] = useState(false);
+
+  // --- Suggest Edit States ---
+  const [showSuggestEdit, setShowSuggestEdit] = useState(false);
+  const [editValues, setEditValues] = useState({
+    question: "",
+    answer: "",
+    multiple_choice: [] as string[],
+    verse_references: [] as string[],
+    difficulty: 1,
+  });
+  const [submittingEdit, setSubmittingEdit] = useState(false);
 
   const fetchRandomQuestion = async () => {
     setLoading(true);
@@ -26,7 +38,6 @@ export default function RandomQuestionPage() {
     setSelectedOption("");
     try {
       const books = selectedTags.flatMap(getBooksForTag);
-
       const res = await fetch("/api/trivia_questions/random", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -34,7 +45,6 @@ export default function RandomQuestionPage() {
       });
 
       if (!res.ok) throw new Error("Failed to fetch question");
-
       const data: Question = await res.json();
       setQuestion(data);
       setUpvotes(data.upvotes ?? 0);
@@ -63,11 +73,63 @@ export default function RandomQuestionPage() {
 
   const handleUpvote = () => setUpvotes((prev) => prev + 1);
   const handleDownvote = () => setDownvotes((prev) => prev + 1);
-  const handleSuggestEdit = () => alert("Suggest edit feature coming soon!");
   const handleNewQuestion = () => fetchRandomQuestion();
 
+  // --- Suggest Edit Handlers ---
+  const openSuggestEdit = () => {
+    if (!question) return;
+    setEditValues({
+      question: question.question,
+      answer: question.answer,
+      multiple_choice: question.multiple_choice_answers[0]?.options || [],
+      verse_references: question.verse_references,
+      difficulty: question.difficulty,
+    });
+    setShowSuggestEdit(true);
+  };
+
+  const handleEditChange = (field: string, value: any) => {
+    setEditValues((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const submitSuggestedEdit = async () => {
+    if (!question) return;
+    setSubmittingEdit(true);
+    try {
+      const payload = {
+        question_id: question.id,
+        question: editValues.question,
+        answer: editValues.answer,
+        multiple_choice_answers: editValues.multiple_choice.length
+          ? [{ options: editValues.multiple_choice, correct: editValues.answer }]
+          : [],
+        verse_references: editValues.verse_references,
+        difficulty: editValues.difficulty,
+        attempts: question.attempts,
+        correct_attempts: question.correct_attempts,
+        upvotes: question.upvotes,
+        downvotes: question.downvotes,
+        verified: false,
+      };
+
+      const res = await fetch("/api/trivia_questions/suggested_edits", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) throw new Error("Failed to submit suggested edit");
+      setShowSuggestEdit(false);
+      alert("✅ Suggested edit submitted!");
+    } catch (err: any) {
+      alert(`Failed to submit edit: ${err.message}`);
+    } finally {
+      setSubmittingEdit(false);
+    }
+  };
+
   return (
-    <div className="max-w-xl mx-auto p-6 space-y-6">
+    <div className="max-w-3xl mx-auto p-6 space-y-6">
       <h1 className="text-3xl font-bold text-center">Trivia Question</h1>
 
       {/* Filter toggle button */}
@@ -79,7 +141,7 @@ export default function RandomQuestionPage() {
         </button>
       </div>
 
-      {/* Filters - collapsible */}
+      {/* Filters */}
       {showFilters && (
         <div className="bg-gray-50 p-4 rounded-xl shadow space-y-4 mt-2 transition-all">
           <div>
@@ -89,8 +151,7 @@ export default function RandomQuestionPage() {
                 <button
                   key={tag.label}
                   onClick={() => toggleTag(tag.label)}
-                  className={`px-3 py-1 rounded-full text-sm font-medium transition
-                  ${
+                  className={`px-3 py-1 rounded-full text-sm font-medium transition ${
                     selectedTags.includes(tag.label)
                       ? "bg-blue-600 text-white"
                       : "bg-blue-100 text-blue-800 hover:bg-blue-200"
@@ -176,7 +237,6 @@ export default function RandomQuestionPage() {
                 setSelectedOption("");
               }}
               className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-              required
             />
             <button
               type="submit"
@@ -191,46 +251,97 @@ export default function RandomQuestionPage() {
           <div className="flex justify-between items-center mt-4">
             <div className="flex gap-4">
               <button
-                onClick={handleUpvote}
+                onClick={() => setUpvotes((prev) => prev + 1)}
                 className="flex items-center gap-1 bg-green-100 text-green-700 px-3 py-1 rounded hover:bg-green-200 transition">
                 ▲ {upvotes}
               </button>
               <button
-                onClick={handleDownvote}
+                onClick={() => setDownvotes((prev) => prev + 1)}
                 className="flex items-center gap-1 bg-red-100 text-red-700 px-3 py-1 rounded hover:bg-red-200 transition">
                 ▼ {downvotes}
               </button>
             </div>
+
             <button
-              onClick={handleSuggestEdit}
+              onClick={handleNewQuestion}
+              className="bg-green-100 text-green-800 px-3 py-1 rounded hover:bg-green-200 transition font-semibold">
+              Next Question
+            </button>
+
+            {/* Suggest Edit Button */}
+            <button
+              onClick={openSuggestEdit}
               className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded hover:bg-yellow-200 transition">
               Suggest Edit
             </button>
           </div>
+
+          {/* Suggest Edit Form */}
+          {showSuggestEdit && (
+            <div className="bg-gray-50 p-4 rounded-xl shadow mt-4 space-y-2 border border-gray-200">
+              <h2 className="font-semibold text-lg mb-2">Suggest an Edit</h2>
+
+              <input
+                type="text"
+                placeholder="Question"
+                value={editValues.question}
+                onChange={(e) => handleEditChange("question", e.target.value)}
+                className="w-full border rounded px-2 py-1"
+              />
+              <input
+                type="text"
+                placeholder="Answer"
+                value={editValues.answer}
+                onChange={(e) => handleEditChange("answer", e.target.value)}
+                className="w-full border rounded px-2 py-1"
+              />
+              <input
+                type="text"
+                placeholder="Multiple Choice Options (comma separated)"
+                value={editValues.multiple_choice.join(", ")}
+                onChange={(e) =>
+                  handleEditChange(
+                    "multiple_choice",
+                    e.target.value.split(",").map((s) => s.trim())
+                  )
+                }
+                className="w-full border rounded px-2 py-1"
+              />
+
+              {/* Replace verse references input with BibleVerseSelector */}
+              <BibleVerseSelector
+                selectedVerses={editValues.verse_references}
+                onChange={(verses) => handleEditChange("verse_references", verses)}
+              />
+
+              <input
+                type="number"
+                min={1}
+                max={10}
+                placeholder="Difficulty"
+                value={editValues.difficulty}
+                onChange={(e) => handleEditChange("difficulty", Number(e.target.value))}
+                className="w-20 border rounded px-2 py-1"
+              />
+
+              <div className="flex gap-2 mt-2">
+                <button
+                  onClick={submitSuggestedEdit}
+                  disabled={submittingEdit}
+                  className="bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600 transition font-semibold">
+                  Submit
+                </button>
+                <button
+                  onClick={() => setShowSuggestEdit(false)}
+                  disabled={submittingEdit}
+                  className="bg-gray-300 text-gray-700 px-3 py-1 rounded hover:bg-gray-400 transition font-semibold">
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
   );
 }
-
-// export default function Home() {
-//   return (
-//     <div className="flex min-h-screen items-center justify-center font-serif">
-//       <main className="flex min-h-screen w-full flex-col items-center justify-between py-32 px-16 sm:items-start">
-//         <div>
-//           Hey there
-//           {/* Question introduction —
-//           1. Query database for a random question, display it
-//           2. Have text field for answers, skip or show answer button
-//           3. "close enough" checker
-//           4. Pencil button for suggest feedback or error.
-//           5. Feedback/update page
-//           6. have a default question
-//           7. Once they get it right or wrong rate the difficulty
-//           8. Maybe other game mode.
-//           */}
-//         </div>
-//       </main>
-//     </div>
-//   );
-// }

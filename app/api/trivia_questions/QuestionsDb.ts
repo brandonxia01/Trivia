@@ -16,6 +16,7 @@ export interface Question {
   correct_attempts: number;
   upvotes: number;
   downvotes: number;
+  verified: boolean;
 }
 
 export function mapQuestion(row: any): Question {
@@ -33,6 +34,7 @@ export function mapQuestion(row: any): Question {
     correct_attempts: row.correct_attempts ?? 0,
     upvotes: row.upvotes ?? 0,
     downvotes: row.downvotes ?? 0,
+    verified: row.verified ?? false,
   };
 }
 

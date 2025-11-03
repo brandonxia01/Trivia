@@ -27,7 +27,12 @@ export default function HeaderNav() {
         <a href="/questions/create" className="hover:text-blue-600">
           Create New Question
         </a>
+        <a href="/questions/suggested_edits" className="hover:text-blue-600">
+          Suggested Edits
+        </a>
       </div>
+
+      {/* Right: auth buttons could go here */}
     </nav>
   );
 }

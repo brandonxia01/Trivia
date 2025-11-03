@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { MultipleChoiceAnswer } from "@/app/api/trivia_questions/QuestionsDb";
 import BibleVerseSelector from "@/app/components/BibleVerseSelector";
+import { prompt } from "@/app/utils/Prompts";
 
 export default function CreateQuestionPage() {
   const [question, setQuestion] = useState("");
@@ -13,6 +14,10 @@ export default function CreateQuestionPage() {
   const [multipleChoiceOptions, setMultipleChoiceOptions] = useState<string[]>([]);
   const [optionInput, setOptionInput] = useState("");
   const [message, setMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
+
+  // --- AI generation states ---
+  const [basePrompt, setBasePrompt] = useState("");
+  const [isGenerating, setIsGenerating] = useState(false);
 
   const addOption = () => {
     const trimmed = optionInput.trim();
@@ -41,7 +46,6 @@ export default function CreateQuestionPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // validation
     if (!question.trim() || !answer.trim()) {
       setMessage({ text: "Question and answer are required.", type: "error" });
       return;
@@ -94,12 +98,75 @@ export default function CreateQuestionPage() {
     }
   };
 
+  const handleGenerate = async () => {
+    setIsGenerating(true);
+    setMessage(null);
+
+    try {
+      // Combine your base prompt with the static one
+      const combinedPrompt = `${prompt(`User idea: ${basePrompt || "(none given)"}`)}`;
+
+      const res = await fetch("/api/trivia_questions/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: combinedPrompt }),
+      });
+
+      const response = await res.json();
+      const dataStr = response.result;
+      if (!res.ok) throw new Error(dataStr.error || "Failed to generate question.");
+
+      let data;
+      try {
+        data = JSON.parse(dataStr);
+      } catch (err) {
+        console.error("Failed to parse generated question:", err);
+        return;
+      }
+      // Fill in the generated fields
+      setQuestion(data.question || "");
+      setAnswer(data.answer || "");
+      setDifficulty(data.difficulty || 1);
+      setVerseReferences(data.verse_references || []);
+      setMultipleChoiceOptions(data.multiple_choice_answers?.[0]?.options || []);
+
+      setMessage({ text: "✨ Question generated successfully!", type: "success" });
+    } catch (err: any) {
+      setMessage({ text: `Generation failed: ${err.message}`, type: "error" });
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   return (
     <div className="max-w-2xl mx-auto p-6">
       <h1 className="text-3xl font-bold mb-6 text-center">Create a New Trivia Question</h1>
 
+      {/* --- AI Generation Section --- */}
+      <div className="bg-gray-50 border border-gray-200 rounded-2xl p-4 mb-6">
+        <h2 className="text-xl font-semibold mb-2">Generate with AI</h2>
+        <p className="text-sm text-gray-600 mb-3">
+          Optionally provide a topic or rough idea for your question (e.g., “A question about Paul’s conversion”). Leave
+          blank for a random Bible trivia question.
+        </p>
+        <textarea
+          value={basePrompt}
+          onChange={(e) => setBasePrompt(e.target.value)}
+          placeholder="Type your question idea here..."
+          className="w-full border border-gray-300 rounded-lg px-3 py-2 mb-3 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+          rows={2}
+        />
+        <button
+          onClick={handleGenerate}
+          disabled={isGenerating}
+          className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition disabled:opacity-50">
+          {isGenerating ? "Generating..." : "✨ Generate Question"}
+        </button>
+      </div>
+
+      {/* --- Manual Creation Form --- */}
       <form onSubmit={handleSubmit} className="space-y-6 bg-white shadow-md rounded-2xl p-6 border border-gray-200">
-        {/* Question Field */}
+        {/* Question */}
         <div>
           <label className="block font-medium mb-1">Question</label>
           <textarea
@@ -107,12 +174,12 @@ export default function CreateQuestionPage() {
             onChange={(e) => setQuestion(e.target.value)}
             className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
             placeholder="Enter your trivia question"
-            rows={8} // Adjust height by changing the number of rows
+            rows={8}
             required
           />
         </div>
 
-        {/* Answer Field */}
+        {/* Answer */}
         <div>
           <label className="block font-medium mb-1">Answer</label>
           <textarea
@@ -120,7 +187,7 @@ export default function CreateQuestionPage() {
             onChange={(e) => setAnswer(e.target.value)}
             className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
             placeholder="Enter the correct answer"
-            rows={2} // adjust initial height as needed
+            rows={2}
             required
           />
         </div>
@@ -142,9 +209,9 @@ export default function CreateQuestionPage() {
         {/* Verse References */}
         <BibleVerseSelector selectedVerses={verseReferences} onChange={setVerseReferences} />
 
-        {/* Multiple Choice Options */}
+        {/* Multiple Choice */}
         <div>
-          <label className="block font-medium mb-1">{"Multiple Choice Options (Optional)"}</label>
+          <label className="block font-medium mb-1">Multiple Choice Options (Optional)</label>
           <div className="flex gap-2 mb-2">
             <input
               type="text"
