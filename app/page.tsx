@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Question, MultipleChoiceAnswer } from "./api/trivia_questions/QuestionsDb";
 import { bibleBookTags, getBooksForTag } from "./utils/BibleBookTags";
 import BibleVerseSelector from "./components/BibleVerseSelector";
+import { isSimilarAnswer } from "./utils/Strings";
 
 export default function RandomQuestionPage() {
   const [question, setQuestion] = useState<Question | null>(null);
@@ -67,8 +68,9 @@ export default function RandomQuestionPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!question) return;
-    const isCorrect = answerInput.trim().toLowerCase() === question.answer.trim().toLowerCase();
-    setFeedback(isCorrect ? "✅ Correct!" : `❌ Incorrect. Correct answer: ${question.answer}`);
+
+    const isCorrect = isSimilarAnswer(answerInput, question.answer);
+    setFeedback(isCorrect ? `✅ Correct! ${question.answer}` : `❌ Incorrect. Correct answer: ${question.answer}`);
   };
 
   const handleUpvote = () => setUpvotes((prev) => prev + 1);
