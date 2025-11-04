@@ -204,8 +204,9 @@ export default function RandomQuestionPage() {
       ) : !question ? (
         <div className="p-4 text-center">No question found.</div>
       ) : (
-        <div className="bg-white p-6 rounded-xl shadow border border-gray-200 space-y-4">
+        <div className="bg-white p-6 rounded-xl shadow border border-gray-200">
           <p className="text-lg font-medium">{question.question}</p>
+          <p className="text-md font-medium text-gray-500">{`Difficulty: ${question.difficulty}`}</p>
 
           {/* Multiple Choice */}
           {question.multiple_choice_answers.length > 0 && (
@@ -315,16 +316,18 @@ export default function RandomQuestionPage() {
                 selectedVerses={editValues.verse_references}
                 onChange={(verses) => handleEditChange("verse_references", verses)}
               />
-
-              <input
-                type="number"
-                min={1}
-                max={10}
-                placeholder="Difficulty"
-                value={editValues.difficulty}
-                onChange={(e) => handleEditChange("difficulty", Number(e.target.value))}
-                className="w-20 border rounded px-2 py-1"
-              />
+              <div className="flex items-center">
+                <p className="pr-2">Difficulty:</p>
+                <input
+                  type="number"
+                  min={1}
+                  max={10}
+                  placeholder="Difficulty"
+                  value={editValues.difficulty}
+                  onChange={(e) => handleEditChange("difficulty", Number(e.target.value))}
+                  className="w-20 border rounded px-2 py-1"
+                />
+              </div>
 
               <div className="flex gap-2 mt-2">
                 <button

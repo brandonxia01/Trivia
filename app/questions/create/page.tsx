@@ -197,6 +197,7 @@ export default function CreateQuestionPage() {
         <div className="relative w-64">
           <label className="block font-medium mb-1 flex items-center space-x-1">
             <span>{`Difficulty (1–10)`}</span>
+
             {/* Tooltip icon */}
             <div className="relative group">
               <svg
@@ -212,8 +213,12 @@ export default function CreateQuestionPage() {
                   d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 100 20 10 10 0 000-20z"
                 />
               </svg>
+
               {/* Tooltip content: full list 1–10 */}
-              <div className="absolute left-6 top-0 w-80 p-2 bg-gray-800 text-white text-xs rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity z-10">
+              <div
+                className="absolute left-6 top-0 w-80 p-2 bg-gray-800 text-white text-xs rounded shadow-lg 
+                      opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto 
+                      transition-opacity z-10">
                 {Object.entries(difficultyExamples).map(([level, desc]) => (
                   <div key={level}>
                     <strong>{level}:</strong> {desc}
@@ -222,6 +227,7 @@ export default function CreateQuestionPage() {
               </div>
             </div>
           </label>
+
           <input
             type="number"
             value={difficulty}
