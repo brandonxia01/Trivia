@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { MultipleChoiceAnswer } from "@/app/api/trivia_questions/QuestionsDb";
 import BibleVerseSelector from "@/app/components/BibleVerseSelector";
 import { prompt } from "@/app/utils/Prompts";
@@ -16,10 +16,15 @@ export default function CreateQuestionPage() {
   const [optionInput, setOptionInput] = useState("");
   const [message, setMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
 
-  // --- AI generation states ---
   const [basePrompt, setBasePrompt] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
 
+  // --- Duplicate checking ---
+  const [duplicateMatches, setDuplicateMatches] = useState<any[]>([]);
+  const [override, setOverride] = useState(false);
+  const [checkingDuplicates, setCheckingDuplicates] = useState(false);
+
+  // --- Option and Verse handlers ---
   const addOption = () => {
     const trimmed = optionInput.trim();
     if (trimmed && !multipleChoiceOptions.includes(trimmed)) {
@@ -27,11 +32,9 @@ export default function CreateQuestionPage() {
       setOptionInput("");
     }
   };
-
   const removeOption = (option: string) => {
     setMultipleChoiceOptions(multipleChoiceOptions.filter((o) => o !== option));
   };
-
   const addVerseReference = () => {
     const trimmed = verseInput.trim();
     if (trimmed && !verseReferences.includes(trimmed)) {
@@ -39,11 +42,41 @@ export default function CreateQuestionPage() {
       setVerseInput("");
     }
   };
-
   const removeVerseReference = (ref: string) => {
     setVerseReferences(verseReferences.filter((v) => v !== ref));
   };
 
+  // --- Check duplicates whenever question changes ---
+  useEffect(() => {
+    if (!question.trim()) {
+      setDuplicateMatches([]);
+      setOverride(false);
+      return;
+    }
+
+    const timeout = setTimeout(async () => {
+      setCheckingDuplicates(true);
+      try {
+        const res = await fetch("/api/trivia_questions/check_duplicate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ question }),
+        });
+        const data = await res.json();
+        console.log(JSON.stringify(data));
+        setDuplicateMatches(data || []);
+        setOverride(false); // reset override if user changes question
+      } catch (err) {
+        console.error("Error checking duplicates:", err);
+      } finally {
+        setCheckingDuplicates(false);
+      }
+    }, 600);
+
+    return () => clearTimeout(timeout);
+  }, [question]);
+
+  // --- Submit handler ---
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -51,14 +84,16 @@ export default function CreateQuestionPage() {
       setMessage({ text: "Question and answer are required.", type: "error" });
       return;
     }
-
     if (multipleChoiceOptions.length > 0 && !multipleChoiceOptions.includes(answer.trim())) {
       setMessage({ text: "Answer must be one of the multiple-choice options.", type: "error" });
       return;
     }
-
     if (verseReferences.length === 0) {
       setMessage({ text: "At least one verse reference is required.", type: "error" });
+      return;
+    }
+    if (duplicateMatches.length > 0 && !override) {
+      setMessage({ text: "Duplicate questions detected. Confirm override to submit.", type: "error" });
       return;
     }
 
@@ -94,25 +129,24 @@ export default function CreateQuestionPage() {
       setVerseInput("");
       setMultipleChoiceOptions([]);
       setOptionInput("");
+      setDuplicateMatches([]);
+      setOverride(false);
     } catch (err: any) {
       setMessage({ text: `Error: ${err.message}`, type: "error" });
     }
   };
 
+  // --- AI generation handler ---
   const handleGenerate = async () => {
     setIsGenerating(true);
     setMessage(null);
-
     try {
-      // Combine your base prompt with the static one
       const combinedPrompt = `${prompt(`User idea: ${basePrompt || "(none given)"}`)}`;
-
       const res = await fetch("/api/trivia_questions/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt: combinedPrompt }),
       });
-
       const response = await res.json();
       const dataStr = response.result;
       if (!res.ok) throw new Error(dataStr.error || "Failed to generate question.");
@@ -124,13 +158,12 @@ export default function CreateQuestionPage() {
         console.error("Failed to parse generated question:", err);
         return;
       }
-      // Fill in the generated fields
+
       setQuestion(data.question || "");
       setAnswer(data.answer || "");
       setDifficulty(data.difficulty || 1);
       setVerseReferences(data.verse_references || []);
       setMultipleChoiceOptions(data.multiple_choice_answers?.[0]?.options || []);
-
       setMessage({ text: "✨ Question generated successfully!", type: "success" });
     } catch (err: any) {
       setMessage({ text: `Generation failed: ${err.message}`, type: "error" });
@@ -180,6 +213,25 @@ export default function CreateQuestionPage() {
           />
         </div>
 
+        {/* Duplicate warning */}
+        {checkingDuplicates && <p className="text-gray-500">Checking for duplicate questions...</p>}
+        {duplicateMatches.length > 0 && (
+          <div className="bg-yellow-50 border border-yellow-300 p-3 rounded-lg space-y-2">
+            <p className="font-medium text-yellow-800">⚠️ Similar questions detected:</p>
+            <ul className="list-disc list-inside text-gray-700">
+              {duplicateMatches.map((q) => (
+                <li key={q.id}>{q.question}</li>
+              ))}
+            </ul>
+            <button
+              type="button"
+              onClick={() => setOverride(true)}
+              className="mt-2 bg-red-500 text-white px-3 py-1 rounded hover:bg-red-700 transition">
+              Override and submit anyway
+            </button>
+          </div>
+        )}
+
         {/* Answer */}
         <div>
           <label className="block font-medium mb-1">Answer</label>
@@ -197,8 +249,6 @@ export default function CreateQuestionPage() {
         <div className="relative w-64">
           <label className="block font-medium mb-1 flex items-center space-x-1">
             <span>{`Difficulty (1–10)`}</span>
-
-            {/* Tooltip icon */}
             <div className="relative group">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -213,8 +263,6 @@ export default function CreateQuestionPage() {
                   d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 100 20 10 10 0 000-20z"
                 />
               </svg>
-
-              {/* Tooltip content: full list 1–10 */}
               <div
                 className="absolute left-6 top-0 w-80 p-2 bg-gray-800 text-white text-xs rounded shadow-lg 
                       opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto 
@@ -227,7 +275,6 @@ export default function CreateQuestionPage() {
               </div>
             </div>
           </label>
-
           <input
             type="number"
             value={difficulty}
@@ -280,7 +327,10 @@ export default function CreateQuestionPage() {
         {/* Submit */}
         <button
           type="submit"
-          className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition font-semibold">
+          disabled={duplicateMatches.length > 0 && !override}
+          className={`w-full py-2 rounded-lg font-semibold text-white ${
+            duplicateMatches.length > 0 && !override ? "bg-gray-400" : "bg-blue-600 hover:bg-blue-700"
+          }`}>
           Create Question
         </button>
       </form>

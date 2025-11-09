@@ -28,7 +28,6 @@ export async function POST(req: NextRequest) {
     });
 
     const data = await response.json();
-    console.log("data = " + JSON.stringify(data));
 
     const content = data.choices?.[0]?.message?.content;
 
