@@ -1,20 +1,10 @@
-"use client";
-
-import { useState } from "react";
-
 export default function HeaderNav() {
-  const [username, setUsername] = useState<string | null>(null);
-
-  const handleLogout = async () => {
-    await fetch("/api/auth/logout", { method: "POST" });
-    setUsername(null);
-    window.location.reload();
-  };
-
   return (
     <nav className="bg-gray-100 border-b border-gray-300 p-4 flex justify-between items-center">
       {/* Left: site title / logo */}
-      <div className="text-xl font-bold">Trivia App</div>
+      <a href="/" className="text-xl font-bold hover:text-blue-600">
+        Trivia App
+      </a>
 
       {/* Center: nav tabs */}
       <div className="flex space-x-4">

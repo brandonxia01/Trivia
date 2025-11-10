@@ -12,8 +12,6 @@ export default function RandomQuestionPage() {
   const [feedback, setFeedback] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [upvotes, setUpvotes] = useState<number>(0);
-  const [downvotes, setDownvotes] = useState<number>(0);
   const [selectedOption, setSelectedOption] = useState<string>("");
 
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
@@ -48,8 +46,6 @@ export default function RandomQuestionPage() {
       if (!res.ok) throw new Error("Failed to fetch question");
       const data: Question = await res.json();
       setQuestion(data);
-      setUpvotes(data.upvotes ?? 0);
-      setDownvotes(data.downvotes ?? 0);
     } catch (err: any) {
       setError(err.message || "Unknown error");
     } finally {
@@ -73,8 +69,6 @@ export default function RandomQuestionPage() {
     setFeedback(isCorrect ? `✅ Correct! ${question.answer}` : `❌ Incorrect. Correct answer: ${question.answer}`);
   };
 
-  const handleUpvote = () => setUpvotes((prev) => prev + 1);
-  const handleDownvote = () => setDownvotes((prev) => prev + 1);
   const handleNewQuestion = () => fetchRandomQuestion();
 
   // --- Suggest Edit Handlers ---
@@ -147,8 +141,11 @@ export default function RandomQuestionPage() {
       {showFilters && (
         <div className="bg-gray-50 p-4 rounded-xl shadow space-y-4 mt-2 transition-all">
           <div>
-            <h2 className="font-semibold mb-2">Book Tags</h2>
+            <div className="text-center pb-4">
+              <h1 className="text-2xl font-bold text-gray-800">Question Filters</h1>
+            </div>
             <div className="flex flex-wrap gap-2">
+              <h2 className="font-semibold mb-2">Book Tags:</h2>
               {bibleBookTags.map((tag) => (
                 <button
                   key={tag.label}
@@ -251,32 +248,27 @@ export default function RandomQuestionPage() {
           {feedback && <p className="mt-2 font-medium text-center">{feedback}</p>}
 
           {/* Votes & Actions */}
-          <div className="flex justify-between items-center mt-4">
-            <div className="flex gap-4">
+          <div className="flex items-center mt-4">
+            {/* Left placeholder to balance the center */}
+            <div className="flex-1"></div>
+
+            {/* Center button */}
+            <div>
               <button
-                onClick={() => setUpvotes((prev) => prev + 1)}
-                className="flex items-center gap-1 bg-green-100 text-green-700 px-3 py-1 rounded hover:bg-green-200 transition">
-                ▲ {upvotes}
-              </button>
-              <button
-                onClick={() => setDownvotes((prev) => prev + 1)}
-                className="flex items-center gap-1 bg-red-100 text-red-700 px-3 py-1 rounded hover:bg-red-200 transition">
-                ▼ {downvotes}
+                onClick={handleNewQuestion}
+                className="bg-green-100 text-green-800 px-3 py-1 rounded hover:bg-green-200 transition font-semibold">
+                Next Question
               </button>
             </div>
 
-            <button
-              onClick={handleNewQuestion}
-              className="bg-green-100 text-green-800 px-3 py-1 rounded hover:bg-green-200 transition font-semibold">
-              Next Question
-            </button>
-
-            {/* Suggest Edit Button */}
-            <button
-              onClick={openSuggestEdit}
-              className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded hover:bg-yellow-200 transition">
-              Suggest Edit
-            </button>
+            {/* Right button */}
+            <div className="flex-1 flex justify-end">
+              <button
+                onClick={openSuggestEdit}
+                className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded hover:bg-yellow-200 transition">
+                Suggest Edit
+              </button>
+            </div>
           </div>
 
           {/* Suggest Edit Form */}
