@@ -216,18 +216,26 @@ export default function CreateQuestionPage() {
         {/* Duplicate warning */}
         {checkingDuplicates && <p className="text-gray-500">Checking for duplicate questions...</p>}
         {duplicateMatches.length > 0 && (
-          <div className="bg-yellow-50 border border-yellow-300 p-3 rounded-lg space-y-2">
-            <p className="font-medium text-yellow-800">⚠️ Similar questions detected:</p>
-            <ul className="list-disc list-inside text-gray-700">
+          <div className="bg-yellow-50 border border-yellow-300 p-4 rounded-xl space-y-3">
+            <p className="font-semibold text-yellow-800 flex items-center gap-2">⚠️ Similar questions detected</p>
+            <p className="text-sm text-gray-700">
+              Your question may already exist in the database. Please review the similar questions below. If you still
+              believe your question is unique, you can proceed to submit it.
+            </p>
+            <ul className="list-disc list-inside text-gray-800 space-y-1">
               {duplicateMatches.map((q) => (
-                <li key={q.id}>{q.question}</li>
+                <li key={q.id} className="text-sm">
+                  {q.question}
+                </li>
               ))}
             </ul>
             <button
               type="button"
               onClick={() => setOverride(true)}
-              className="mt-2 bg-red-500 text-white px-3 py-1 rounded hover:bg-red-700 transition">
-              Override and submit anyway
+              disabled={override}
+              className={`mt-3 px-4 py-2 rounded-lg font-medium transition 
+      ${override ? "bg-gray-300 text-gray-600" : "bg-yellow-600 text-white hover:bg-yellow-700"}`}>
+              {override ? "✅ Marked as unique — you can now submit" : "My question is unique enough — let me continue"}
             </button>
           </div>
         )}

@@ -41,7 +41,15 @@ export function mapQuestion(row: any): Question {
 }
 
 export async function listQuestions(): Promise<Question[]> {
-  const response = await queryDb(`SELECT * FROM trivia_questions ORDER BY id ASC`);
+  // Explicitly exclude embedding — don't SELECT *
+  const response = await queryDb(`
+    SELECT 
+      id, question, answer, multiple_choice_answers, verse_references,
+      difficulty, attempts, correct_attempts, upvotes, downvotes, verified
+    FROM trivia_questions
+    ORDER BY id ASC
+  `);
+
   return response.map((row) => mapQuestion(row));
 }
 

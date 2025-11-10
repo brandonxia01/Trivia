@@ -30,12 +30,8 @@ export async function POST(req: Request) {
     [vectorLiteral]
   );
 
-  console.log("response = " + JSON.stringify(rows));
-
   // Filter out unrelated results and map to Question type
   const similar: Question[] = rows.filter((r: any) => r.distance < 0.99).map(mapQuestion);
-
-  console.log("similars = " + JSON.stringify(similar));
 
   return new Response(JSON.stringify(similar), { status: 200 });
 }

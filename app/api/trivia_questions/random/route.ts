@@ -27,9 +27,12 @@ export async function POST(request: NextRequest) {
       params.push(...books);
     }
 
-    // 🧮 Build query dynamically
+    // 🧮 Build query dynamically — exclude embedding
     const query = `
-      SELECT * FROM trivia_questions
+      SELECT 
+        id, question, answer, multiple_choice_answers, verse_references,
+        difficulty, attempts, correct_attempts, upvotes, downvotes, verified
+      FROM trivia_questions
       WHERE ${whereClauses.join(" AND ")}
       ORDER BY RANDOM()
       LIMIT 1

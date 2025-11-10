@@ -9,6 +9,9 @@ export default function QuestionsPage() {
   const [error, setError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editValues, setEditValues] = useState<Partial<Question>>({});
+  const [sortConfig, setSortConfig] = useState<{ key: keyof Question; direction: "asc" | "desc" } | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 50;
 
   useEffect(() => {
     async function fetchQuestions() {
@@ -44,7 +47,7 @@ export default function QuestionsPage() {
 
   const startEdit = (q: Question) => {
     setEditingId(q.id);
-    setEditValues({ ...q }); // copy current values
+    setEditValues({ ...q });
   };
 
   const cancelEdit = () => {
@@ -80,6 +83,40 @@ export default function QuestionsPage() {
     setEditValues((prev) => ({ ...prev, [field]: value }));
   };
 
+  // Sorting handler
+  const handleSort = (key: keyof Question) => {
+    setSortConfig((prev) => {
+      if (prev && prev.key === key) {
+        return { key, direction: prev.direction === "asc" ? "desc" : "asc" };
+      }
+      return { key, direction: "asc" };
+    });
+  };
+
+  const sortedQuestions = [...questions].sort((a, b) => {
+    if (!sortConfig) return 0;
+    const { key, direction } = sortConfig;
+
+    const aVal = a[key];
+    const bVal = b[key];
+
+    if (typeof aVal === "number" && typeof bVal === "number") return direction === "asc" ? aVal - bVal : bVal - aVal;
+    if (typeof aVal === "boolean" && typeof bVal === "boolean")
+      return direction === "asc" ? Number(aVal) - Number(bVal) : Number(bVal) - Number(aVal);
+    if (typeof aVal === "string" && typeof bVal === "string")
+      return direction === "asc" ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+
+    return 0;
+  });
+
+  const totalPages = Math.ceil(sortedQuestions.length / pageSize);
+  const paginatedQuestions = sortedQuestions.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  const getSortArrow = (key: keyof Question) => {
+    if (!sortConfig || sortConfig.key !== key) return "⇅";
+    return sortConfig.direction === "asc" ? "▲" : "▼";
+  };
+
   if (loading) return <div className="p-4 text-center">Loading questions...</div>;
   if (error) return <div className="p-4 text-center text-red-500">{error}</div>;
 
@@ -87,25 +124,38 @@ export default function QuestionsPage() {
     <div className="p-6">
       <h1 className="text-2xl font-bold mb-4">Trivia Questions</h1>
       <div className="overflow-x-auto">
-        <table className="min-w-full table-auto border-collapse border border-gray-300">
+        <table className="min-w-full table-auto border-collapse border border-gray-300 text-sm">
           <thead>
-            <tr className="bg-gray-100">
-              <th className="border border-gray-300 px-4 py-2 text-left">ID</th>
-              <th className="border border-gray-300 px-4 py-2 text-left">Question</th>
-              <th className="border border-gray-300 px-4 py-2 text-left">Answer</th>
-              <th className="border border-gray-300 px-4 py-2 text-left">Multiple Choice</th>
-              <th className="border border-gray-300 px-4 py-2 text-left">Verse References</th>
-              <th className="border border-gray-300 px-4 py-2 text-left">Difficulty</th>
-              <th className="border border-gray-300 px-4 py-2 text-left">Attempts</th>
-              <th className="border border-gray-300 px-4 py-2 text-left">Correct Attempts</th>
-              <th className="border border-gray-300 px-4 py-2 text-left">Upvotes</th>
-              <th className="border border-gray-300 px-4 py-2 text-left">Downvotes</th>
-              <th className="border border-gray-300 px-4 py-2 text-left">Verified</th>
-              <th className="border border-gray-300 px-4 py-2 text-left">Edit</th>
+            <tr className="bg-gray-100 text-left">
+              {[
+                "id",
+                "question",
+                "answer",
+                "multiple_choice_answers",
+                "verse_references",
+                "difficulty",
+                "attempts",
+                "correct_attempts",
+                "upvotes",
+                "downvotes",
+                "verified",
+              ].map((key) => (
+                <th
+                  key={key}
+                  className="border border-gray-300 px-3 py-2 cursor-pointer select-none hover:bg-gray-200"
+                  onClick={() => handleSort(key as keyof Question)}>
+                  <div className="flex items-center justify-between">
+                    <span className="capitalize">{key.replace("_", " ")}</span>
+                    <span className="text-xs">{getSortArrow(key as keyof Question)}</span>
+                  </div>
+                </th>
+              ))}
+              <th className="border border-gray-300 px-3 py-2">Edit</th>
             </tr>
           </thead>
+
           <tbody>
-            {questions.map((q) => {
+            {paginatedQuestions.map((q) => {
               const isEditing = editingId === q.id;
               return (
                 <tr key={q.id} className="hover:bg-gray-50">
@@ -253,7 +303,7 @@ export default function QuestionsPage() {
                   {/* Verified */}
                   <td className="border border-gray-300 px-4 py-2">
                     {q.verified ? (
-                      <span className="text-green-600 font-semibold">✔ Verified</span>
+                      <span className="text-green-600 font-semibold">✔</span>
                     ) : (
                       <button
                         disabled={q.verified}
@@ -261,12 +311,12 @@ export default function QuestionsPage() {
                         className={`px-3 py-1 rounded ${
                           q.verified ? "bg-gray-300 text-gray-600" : "bg-green-500 text-white hover:bg-green-600"
                         }`}>
-                        {q.verified ? "Verified" : "Verify"}
+                        Verify
                       </button>
                     )}
                   </td>
 
-                  {/* Edit column */}
+                  {/* Edit */}
                   <td className="border border-gray-300 px-4 py-2">
                     {isEditing ? (
                       <div className="flex gap-2">
@@ -292,6 +342,25 @@ export default function QuestionsPage() {
             })}
           </tbody>
         </table>
+      </div>
+
+      {/* Pagination controls */}
+      <div className="flex justify-center items-center mt-4 gap-3">
+        <button
+          onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+          disabled={currentPage === 1}
+          className="px-3 py-1 rounded bg-gray-200 disabled:opacity-50">
+          Prev
+        </button>
+        <span>
+          Page {currentPage} / {totalPages}
+        </span>
+        <button
+          onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+          disabled={currentPage === totalPages}
+          className="px-3 py-1 rounded bg-gray-200 disabled:opacity-50">
+          Next
+        </button>
       </div>
     </div>
   );
