@@ -1,28 +1,41 @@
 export default function HeaderNav() {
   return (
-    <nav className="bg-gray-100 border-b border-gray-300 p-4 flex justify-between items-center">
-      {/* Left: site title / logo */}
-      <a href="/" className="text-xl font-bold hover:text-blue-600">
-        Trivia App
-      </a>
+    <nav className="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between h-16 items-center">
+          {/* Left: Site title / logo */}
+          <a
+            href="/"
+            className="text-2xl font-extrabold text-gray-900 hover:text-blue-600 transition-colors duration-200">
+            Bible Trivia
+          </a>
 
-      {/* Center: nav tabs */}
-      <div className="flex space-x-4">
-        <a href="/" className="hover:text-blue-600">
-          Play
-        </a>
-        <a href="/questions" className="hover:text-blue-600">
-          Questions
-        </a>
-        <a href="/questions/create" className="hover:text-blue-600">
-          Create New Question
-        </a>
-        <a href="/questions/suggested_edits" className="hover:text-blue-600">
-          Suggested Edits
-        </a>
+          {/* Center / Right: Nav links */}
+          <div className="hidden md:flex space-x-6">
+            <a href="/" className="text-gray-700 hover:text-blue-600 font-medium transition-colors duration-200">
+              Play
+            </a>
+            <a
+              href="/questions"
+              className="text-gray-700 hover:text-blue-600 font-medium transition-colors duration-200">
+              Questions
+            </a>
+            <a
+              href="/questions/create"
+              className="text-gray-700 hover:text-blue-600 font-medium transition-colors duration-200">
+              Create
+            </a>
+            <a
+              href="/questions/suggested_edits"
+              className="text-gray-700 hover:text-blue-600 font-medium transition-colors duration-200">
+              Suggested Edits
+            </a>
+          </div>
+
+          {/* Mobile menu button */}
+          <div className="md:hidden">{/* You can later add a hamburger menu icon here */}</div>
+        </div>
       </div>
-
-      {/* Right: auth buttons could go here */}
     </nav>
   );
 }

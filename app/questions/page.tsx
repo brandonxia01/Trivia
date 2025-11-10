@@ -123,6 +123,41 @@ export default function QuestionsPage() {
   return (
     <div className="p-6">
       <h1 className="text-2xl font-bold mb-4">Trivia Questions</h1>
+      {/* Modern Pagination controls */}
+      <div className="flex justify-center items-center mt-6 gap-2 flex-wrap pb-4">
+        {/* Prev button */}
+        <button
+          onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+          disabled={currentPage === 1}
+          className="px-4 py-2 rounded-lg bg-gradient-to-br from-gray-100 to-gray-200 text-gray-800 hover:from-gray-200 hover:to-gray-300 disabled:opacity-50 shadow-sm transition-all duration-200 transform hover:-translate-y-0.5">
+          &larr; Prev
+        </button>
+
+        {/* Page numbers */}
+        <div className="flex items-center gap-1">
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+            <button
+              key={page}
+              onClick={() => setCurrentPage(page)}
+              className={`px-3 py-1 rounded-lg font-medium transition-all duration-200 ${
+                currentPage === page
+                  ? "bg-blue-600 text-white shadow-lg transform scale-105"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200 hover:shadow-sm hover:-translate-y-0.5"
+              }`}>
+              {page}
+            </button>
+          ))}
+        </div>
+
+        {/* Next button */}
+        <button
+          onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+          disabled={currentPage === totalPages}
+          className="px-4 py-2 rounded-lg bg-gradient-to-br from-gray-100 to-gray-200 text-gray-800 hover:from-gray-200 hover:to-gray-300 disabled:opacity-50 shadow-sm transition-all duration-200 transform hover:-translate-y-0.5">
+          Next &rarr;
+        </button>
+      </div>
+
       <div className="overflow-x-auto">
         <table className="min-w-full table-auto border-collapse border border-gray-300 text-sm">
           <thead>
@@ -344,22 +379,38 @@ export default function QuestionsPage() {
         </table>
       </div>
 
-      {/* Pagination controls */}
-      <div className="flex justify-center items-center mt-4 gap-3">
+      {/* Modern Pagination controls */}
+      <div className="flex justify-center items-center mt-6 gap-2 flex-wrap">
+        {/* Prev button */}
         <button
           onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
           disabled={currentPage === 1}
-          className="px-3 py-1 rounded bg-gray-200 disabled:opacity-50">
-          Prev
+          className="px-4 py-2 rounded-lg bg-gradient-to-br from-gray-100 to-gray-200 text-gray-800 hover:from-gray-200 hover:to-gray-300 disabled:opacity-50 shadow-sm transition-all duration-200 transform hover:-translate-y-0.5">
+          &larr; Prev
         </button>
-        <span>
-          Page {currentPage} / {totalPages}
-        </span>
+
+        {/* Page numbers */}
+        <div className="flex items-center gap-1">
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+            <button
+              key={page}
+              onClick={() => setCurrentPage(page)}
+              className={`px-3 py-1 rounded-lg font-medium transition-all duration-200 ${
+                currentPage === page
+                  ? "bg-blue-600 text-white shadow-lg transform scale-105"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200 hover:shadow-sm hover:-translate-y-0.5"
+              }`}>
+              {page}
+            </button>
+          ))}
+        </div>
+
+        {/* Next button */}
         <button
           onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
           disabled={currentPage === totalPages}
-          className="px-3 py-1 rounded bg-gray-200 disabled:opacity-50">
-          Next
+          className="px-4 py-2 rounded-lg bg-gradient-to-br from-gray-100 to-gray-200 text-gray-800 hover:from-gray-200 hover:to-gray-300 disabled:opacity-50 shadow-sm transition-all duration-200 transform hover:-translate-y-0.5">
+          Next &rarr;
         </button>
       </div>
     </div>
