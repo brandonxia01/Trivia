@@ -14,6 +14,8 @@ export default function RandomQuestionPage() {
   const [loadingAnswer, setLoadingAnswer] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedOption, setSelectedOption] = useState<string>("");
+  const [questionCount, setQuestionCount] = useState<number | null>(null);
+  const [loadingCount, setLoadingCount] = useState(true);
 
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [minDifficulty, setMinDifficulty] = useState(1);
@@ -54,8 +56,24 @@ export default function RandomQuestionPage() {
     }
   };
 
+  // Fetch the total number of questions
+  const fetchQuestionCount = async () => {
+    setLoadingCount(true);
+    try {
+      const res = await fetch("/api/trivia_questions/count");
+      if (!res.ok) throw new Error("Failed to fetch question count");
+      const data = await res.json();
+      setQuestionCount(data.count);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingCount(false);
+    }
+  };
+
   useEffect(() => {
     fetchRandomQuestion();
+    fetchQuestionCount();
   }, []);
 
   const toggleTag = (tag: string) => {
@@ -173,7 +191,19 @@ export default function RandomQuestionPage() {
 
   return (
     <div className="max-w-3xl mx-auto p-6 space-y-6">
-      <h1 className="text-3xl font-bold text-center">Random Question:</h1>
+      {/* Question count */}
+      <div className="flex justify-center">
+        <div className="bg-gradient-to-r from-blue-50 to-blue-100 border border-blue-200 rounded-xl shadow-md px-6 py-4 flex flex-col items-center">
+          <span className="text-gray-500 text-sm">Total Questions</span>
+          {loadingCount ? (
+            <span className="text-blue-600 font-bold text-2xl animate-pulse">Counting...</span>
+          ) : (
+            <span className="text-blue-600 font-bold text-2xl">{questionCount}</span>
+          )}
+          <span className="text-gray-500 text-sm"> and counting</span>
+        </div>
+      </div>
+      <h1 className="text-2xl md:text-3xl font-semibold text-center text-gray-800">Random Question:</h1>
 
       {/* Filter toggle button */}
       <div className="flex justify-end mb-2 space-x-2">

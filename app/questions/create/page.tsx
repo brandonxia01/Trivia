@@ -24,6 +24,10 @@ export default function CreateQuestionPage() {
   const [override, setOverride] = useState(false);
   const [checkingDuplicates, setCheckingDuplicates] = useState(false);
 
+  // --- Tooltip ---
+  const [showTooltip, setShowTooltip] = useState(false);
+  const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
+
   // --- Option and Verse handlers ---
   const addOption = () => {
     const trimmed = optionInput.trim();
@@ -63,9 +67,8 @@ export default function CreateQuestionPage() {
           body: JSON.stringify({ question }),
         });
         const data = await res.json();
-        console.log(JSON.stringify(data));
         setDuplicateMatches(data || []);
-        setOverride(false); // reset override if user changes question
+        setOverride(false);
       } catch (err) {
         console.error("Error checking duplicates:", err);
       } finally {
@@ -173,11 +176,11 @@ export default function CreateQuestionPage() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto p-6">
-      <h1 className="text-3xl font-bold mb-6 text-center">Create a New Trivia Question</h1>
+    <div className="mx-auto w-full max-w-3xl p-4 sm:p-6 overflow-x-hidden">
+      <h1 className="text-2xl sm:text-3xl font-bold mb-6 text-center">Create a New Trivia Question</h1>
 
       {/* --- AI Generation Section --- */}
-      <div className="bg-gray-50 border border-gray-200 rounded-2xl p-4 mb-6">
+      <div className="bg-gray-50 border border-gray-200 rounded-2xl p-4 sm:p-6 mb-6 shadow-sm">
         <h2 className="text-xl font-semibold mb-2">Generate with AI</h2>
         <p className="text-sm text-gray-600 mb-3">
           Optionally provide a topic or rough idea for your question (e.g., “A question about Paul’s conversion”). Leave
@@ -193,13 +196,15 @@ export default function CreateQuestionPage() {
         <button
           onClick={handleGenerate}
           disabled={isGenerating}
-          className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition disabled:opacity-50">
+          className="w-full sm:w-auto bg-indigo-600 text-white px-4 py-3 rounded-lg hover:bg-indigo-700 transition disabled:opacity-50">
           {isGenerating ? "Generating..." : "✨ Generate Question"}
         </button>
       </div>
 
       {/* --- Manual Creation Form --- */}
-      <form onSubmit={handleSubmit} className="space-y-6 bg-white shadow-md rounded-2xl p-6 border border-gray-200">
+      <form
+        onSubmit={handleSubmit}
+        className="space-y-6 bg-white shadow-lg rounded-2xl p-4 sm:p-6 border border-gray-200">
         {/* Question */}
         <div>
           <label className="block font-medium mb-1">Question</label>
@@ -208,7 +213,7 @@ export default function CreateQuestionPage() {
             onChange={(e) => setQuestion(e.target.value)}
             className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
             placeholder="Enter your trivia question"
-            rows={8}
+            rows={6}
             required
           />
         </div>
@@ -216,7 +221,7 @@ export default function CreateQuestionPage() {
         {/* Duplicate warning */}
         {checkingDuplicates && <p className="text-gray-500">Checking for duplicate questions...</p>}
         {duplicateMatches.length > 0 && (
-          <div className="bg-yellow-50 border border-yellow-300 p-4 rounded-xl space-y-3">
+          <div className="bg-yellow-50 border border-yellow-300 p-3 sm:p-4 rounded-xl space-y-3">
             <p className="font-semibold text-yellow-800 flex items-center gap-2">⚠️ Similar questions detected</p>
             <p className="text-sm text-gray-700">
               Your question may already exist in the database. Please review the similar questions below. If you still
@@ -233,8 +238,9 @@ export default function CreateQuestionPage() {
               type="button"
               onClick={() => setOverride(true)}
               disabled={override}
-              className={`mt-3 px-4 py-2 rounded-lg font-medium transition 
-      ${override ? "bg-gray-300 text-gray-600" : "bg-yellow-600 text-white hover:bg-yellow-700"}`}>
+              className={`mt-3 px-4 py-2 rounded-lg font-medium transition ${
+                override ? "bg-gray-300 text-gray-600" : "bg-yellow-600 text-white hover:bg-yellow-700"
+              }`}>
               {override ? "✅ Marked as unique — you can now submit" : "My question is unique enough — let me continue"}
             </button>
           </div>
@@ -254,33 +260,40 @@ export default function CreateQuestionPage() {
         </div>
 
         {/* Difficulty */}
-        <div className="relative w-64">
+        <div className="relative max-w-xs">
           <label className="block font-medium mb-1 flex items-center space-x-1">
-            <span>{`Difficulty (1–10)`}</span>
-            <div className="relative group">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-4 w-4 text-gray-500 cursor-pointer"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 100 20 10 10 0 000-20z"
-                />
-              </svg>
-              <div
-                className="absolute left-6 top-0 w-80 p-2 bg-gray-800 text-white text-xs rounded shadow-lg 
-                      opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto 
+            <span>Difficulty (1–10)</span>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => (isMobile ? setShowTooltip(!showTooltip) : null)}
+                onMouseEnter={() => !isMobile && setShowTooltip(true)}
+                onMouseLeave={() => !isMobile && setShowTooltip(false)}>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-4 w-4 text-gray-500 cursor-pointer"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 100 20 10 10 0 000-20z"
+                  />
+                </svg>
+              </button>
+              {showTooltip && (
+                <div
+                  className="absolute left-6 top-0 w-72 sm:w-80 p-2 bg-gray-800 text-white text-xs rounded shadow-lg 
                       transition-opacity z-10">
-                {Object.entries(difficultyExamples).map(([level, desc]) => (
-                  <div key={level}>
-                    <strong>{level}:</strong> {desc}
-                  </div>
-                ))}
-              </div>
+                  {Object.entries(difficultyExamples).map(([level, desc]) => (
+                    <div key={level}>
+                      <strong>{level}:</strong> {desc}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </label>
           <input
@@ -300,7 +313,7 @@ export default function CreateQuestionPage() {
         {/* Multiple Choice */}
         <div>
           <label className="block font-medium mb-1">Multiple Choice Options (Optional)</label>
-          <div className="flex gap-2 mb-2">
+          <div className="flex flex-col sm:flex-row gap-2 mb-2">
             <input
               type="text"
               value={optionInput}
@@ -311,7 +324,7 @@ export default function CreateQuestionPage() {
             <button
               type="button"
               onClick={addOption}
-              className="bg-green-500 text-white px-4 rounded-lg hover:bg-green-600 transition">
+              className="bg-green-500 text-white px-4 py-3 rounded-lg hover:bg-green-600 transition">
               Add
             </button>
           </div>
@@ -336,7 +349,7 @@ export default function CreateQuestionPage() {
         <button
           type="submit"
           disabled={duplicateMatches.length > 0 && !override}
-          className={`w-full py-2 rounded-lg font-semibold text-white ${
+          className={`w-full py-3 rounded-lg font-semibold text-white ${
             duplicateMatches.length > 0 && !override ? "bg-gray-400" : "bg-blue-600 hover:bg-blue-700"
           }`}>
           Create Question

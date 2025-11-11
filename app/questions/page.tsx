@@ -30,6 +30,10 @@ export default function QuestionsPage() {
     fetchQuestions();
   }, []);
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [sortConfig?.key, sortConfig?.direction]);
+
   const handleVerify = async (id: number) => {
     try {
       const res = await fetch(`/api/trivia_questions/verify`, {
@@ -158,7 +162,7 @@ export default function QuestionsPage() {
         </button>
       </div>
 
-      <div className="overflow-x-auto">
+      <div className="hidden md:block overflow-x-auto">
         <table className="min-w-full table-auto border-collapse border border-gray-300 text-sm">
           <thead>
             <tr className="bg-gray-100 text-left">
@@ -378,6 +382,256 @@ export default function QuestionsPage() {
           </tbody>
         </table>
       </div>
+      {/* Mobile-friendly sort controls */}
+      <div className="block md:hidden mb-4 p-3 bg-white rounded-xl shadow-md flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+          <span>Sort by:</span>
+          <select
+            value={sortConfig?.key || "id"}
+            onChange={(e) =>
+              setSortConfig((prev) => ({
+                key: e.target.value as keyof Question,
+                direction: prev?.direction || "asc",
+              }))
+            }
+            className="ml-1 border border-gray-300 rounded-lg px-3 py-1 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none shadow-sm transition">
+            <option value="id">ID</option>
+            <option value="difficulty">Difficulty</option>
+            <option value="attempts">Attempts</option>
+            <option value="correct_attempts">Correct Attempts</option>
+          </select>
+        </label>
+
+        <button
+          onClick={() =>
+            setSortConfig((prev) =>
+              prev ? { ...prev, direction: prev.direction === "asc" ? "desc" : "asc" } : { key: "id", direction: "asc" }
+            )
+          }
+          className="flex items-center gap-1 bg-gradient-to-br from-gray-100 to-gray-200 hover:from-gray-200 hover:to-gray-300 text-gray-800 px-3 py-1 rounded-lg text-sm font-medium shadow-sm transition transform hover:-translate-y-0.5">
+          {sortConfig?.direction === "asc" ? (
+            <>
+              Ascending <span className="text-xs">↑</span>
+            </>
+          ) : (
+            <>
+              Descending <span className="text-xs">↓</span>
+            </>
+          )}
+        </button>
+      </div>
+
+      {/* Mobile-friendly cards */}
+<div className="block md:hidden space-y-4">
+  {paginatedQuestions.map((q) => {
+    const isEditing = editingId === q.id;
+
+    return (
+      <div key={q.id} className="bg-white shadow-sm rounded-xl border border-gray-200 p-4 space-y-3">
+        {/* Question */}
+        {isEditing ? (
+          <div>
+            <label className="text-xs font-semibold text-gray-600 mb-1 block">Question</label>
+            <textarea
+              value={editValues.question || ""}
+              onChange={(e) => handleChange("question", e.target.value)}
+              className="w-full border border-gray-300 rounded px-2 py-1 resize-y"
+              rows={3}
+            />
+          </div>
+        ) : (
+          <p className="text-sm font-semibold text-gray-800">{q.question}</p>
+        )}
+
+        {/* Answer */}
+        {isEditing ? (
+          <div>
+            <label className="text-xs font-semibold text-gray-600 mb-1 block">Answer</label>
+            <textarea
+              value={editValues.answer || ""}
+              onChange={(e) => handleChange("answer", e.target.value)}
+              className="w-full border border-gray-300 rounded px-2 py-1 resize-y"
+              rows={2}
+            />
+          </div>
+        ) : (
+          <p className="text-sm text-gray-600">
+            <strong>Answer:</strong> {q.answer}
+          </p>
+        )}
+
+        {/* Difficulty */}
+        {isEditing ? (
+          <div>
+            <label className="text-xs font-semibold text-gray-600 mb-1 block">Difficulty</label>
+            <input
+              type="number"
+              value={editValues.difficulty ?? q.difficulty}
+              onChange={(e) => handleChange("difficulty", Number(e.target.value))}
+              className="w-full border border-gray-300 rounded px-2 py-1"
+            />
+          </div>
+        ) : (
+          <p className="text-sm text-gray-600">
+            <strong>Difficulty:</strong> {q.difficulty}
+          </p>
+        )}
+
+        {/* Verse References */}
+        {isEditing ? (
+          <div>
+            <label className="text-xs font-semibold text-gray-600 mb-1 block">Verse References</label>
+            <textarea
+              value={editValues.verse_references?.join(", ") || ""}
+              onChange={(e) =>
+                handleChange(
+                  "verse_references",
+                  e.target.value.split(",").map((v) => v.trim())
+                )
+              }
+              className="w-full border border-gray-300 rounded px-2 py-1 resize-y"
+              rows={2}
+              placeholder="Comma-separated verses"
+            />
+          </div>
+        ) : (
+          <p className="text-sm text-gray-600">
+            <strong>Verses:</strong> {q.verse_references.length > 0 ? q.verse_references.join(", ") : "—"}
+          </p>
+        )}
+
+        {/* Multiple Choice */}
+        {isEditing ? (
+          <div>
+            <label className="text-xs font-semibold text-gray-600 mb-1 block">Multiple Choice Options</label>
+            <textarea
+              value={editValues.multiple_choice_answers?.[0]?.options.join(", ") || ""}
+              onChange={(e) =>
+                handleChange("multiple_choice_answers", [
+                  { options: e.target.value.split(",").map((o) => o.trim()) },
+                ])
+              }
+              className="w-full border border-gray-300 rounded px-2 py-1 resize-y"
+              rows={2}
+              placeholder="Comma-separated options"
+            />
+          </div>
+        ) : q.multiple_choice_answers.length > 0 ? (
+          <p className="text-sm text-gray-600">
+            <strong>Options:</strong>{" "}
+            {q.multiple_choice_answers.map((item) => item.options.join(", ")).join(" | ")}
+          </p>
+        ) : null}
+
+        {/* Stats and Verified */}
+        <div className="grid grid-cols-2 gap-2">
+          <p className="text-sm text-gray-600">
+            <strong>Attempts:</strong> {isEditing ? (
+              <input
+                type="number"
+                value={editValues.attempts ?? q.attempts}
+                onChange={(e) => handleChange("attempts", Number(e.target.value))}
+                className="border border-gray-300 rounded px-2 py-1 w-full"
+              />
+            ) : (
+              q.attempts
+            )}
+          </p>
+
+          <p className="text-sm text-gray-600">
+            <strong>Correct:</strong> {isEditing ? (
+              <input
+                type="number"
+                value={editValues.correct_attempts ?? q.correct_attempts}
+                onChange={(e) => handleChange("correct_attempts", Number(e.target.value))}
+                className="border border-gray-300 rounded px-2 py-1 w-full"
+              />
+            ) : (
+              q.correct_attempts
+            )}
+          </p>
+
+          <p className="text-sm text-gray-600">
+            <strong>Upvotes:</strong> {isEditing ? (
+              <input
+                type="number"
+                value={editValues.upvotes ?? q.upvotes}
+                onChange={(e) => handleChange("upvotes", Number(e.target.value))}
+                className="border border-gray-300 rounded px-2 py-1 w-full"
+              />
+            ) : (
+              q.upvotes
+            )}
+          </p>
+
+          <p className="text-sm text-gray-600">
+            <strong>Downvotes:</strong> {isEditing ? (
+              <input
+                type="number"
+                value={editValues.downvotes ?? q.downvotes}
+                onChange={(e) => handleChange("downvotes", Number(e.target.value))}
+                className="border border-gray-300 rounded px-2 py-1 w-full"
+              />
+            ) : (
+              q.downvotes
+            )}
+          </p>
+
+          {/* Verified Status */}
+          <p className="text-sm text-gray-600 col-span-2 flex items-center gap-1">
+            <strong>Status:</strong>{" "}
+            {q.verified ? (
+              <span className="text-green-600 font-semibold">✔ Verified</span>
+            ) : (
+              <span className="text-yellow-600 font-semibold flex items-center gap-1 animate-pulse">
+                ⏳ Pending
+              </span>
+            )}
+          </p>
+        </div>
+
+        {/* Action buttons */}
+        <div className="flex flex-wrap gap-2 pt-2">
+          {!isEditing && !q.verified && (
+            <button
+              onClick={() => handleVerify(q.id)}
+              className="bg-green-500 text-white px-3 py-1 rounded-md text-sm hover:bg-green-600"
+            >
+              Verify
+            </button>
+          )}
+
+          {!isEditing && (
+            <button
+              onClick={() => startEdit(q)}
+              className="bg-blue-500 text-white px-3 py-1 rounded-md text-sm hover:bg-blue-600"
+            >
+              Edit
+            </button>
+          )}
+
+          {isEditing && (
+            <>
+              <button
+                onClick={confirmEdit}
+                className="bg-blue-600 text-white px-3 py-1 rounded-md text-sm hover:bg-blue-700"
+              >
+                Submit
+              </button>
+              <button
+                onClick={cancelEdit}
+                className="bg-gray-300 text-gray-700 px-3 py-1 rounded-md text-sm hover:bg-gray-400"
+              >
+                Cancel
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    );
+  })}
+</div>
+
 
       {/* Modern Pagination controls */}
       <div className="flex justify-center items-center mt-6 gap-2 flex-wrap">

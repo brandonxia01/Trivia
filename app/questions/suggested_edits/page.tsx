@@ -41,7 +41,6 @@ export default function SuggestedEditsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch suggested edits + original questions via API
   const fetchEdits = async () => {
     setLoading(true);
     try {
@@ -88,7 +87,6 @@ export default function SuggestedEditsPage() {
     if (!confirm("Confirm this suggested edit? It will update the original question.")) return;
 
     try {
-      // Update the original question via API
       const resUpdate = await fetch(`/api/trivia_questions/suggested_edits`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -106,86 +104,101 @@ export default function SuggestedEditsPage() {
       });
       if (!resUpdate.ok) throw new Error("Failed to update question");
 
-      // Delete the suggested edit
       const resDelete = await fetch(`/api/trivia_questions/suggested_edits?id=${edit.suggested.id}`, {
         method: "DELETE",
       });
       if (!resDelete.ok) throw new Error("Failed to delete suggested edit");
 
-      // Remove from local state
       setEdits((prev) => prev.filter((e) => e.suggested.id !== edit.suggested.id));
     } catch (err: any) {
       alert(`Failed to confirm edit: ${err.message}`);
     }
   };
 
+  const highlightNewOnly = (oldVal: string | number, newVal: string | number) => {
+    if (oldVal === newVal) return <span>{newVal}</span>;
+    return (
+      <span>
+        {oldVal} → <span className="bg-yellow-100 px-1 rounded">{newVal}</span>
+      </span>
+    );
+  };
+
+  const arrayHighlightNewOnly = (oldArr: string[], newArr: string[]) => {
+    const oldStr = oldArr.join(", ") || "—";
+    const newStr = newArr.join(", ") || "—";
+    if (oldStr === newStr) return <span>{newStr}</span>;
+    return (
+      <span>
+        {oldStr} → <span className="bg-yellow-100 px-1 rounded">{newStr}</span>
+      </span>
+    );
+  };
+
   if (loading) return <div className="p-4 text-center">Loading suggested edits...</div>;
   if (error) return <div className="p-4 text-center text-red-500">{error}</div>;
 
   return (
-    <div className="p-6">
+    <div className="p-6 space-y-4">
       <h1 className="text-2xl font-bold mb-4">Suggested Edits</h1>
-      <div className="overflow-x-auto">
-        <table className="min-w-full table-auto border-collapse border border-gray-300">
-          <thead>
-            <tr className="bg-gray-100">
-              <th className="border border-gray-300 px-4 py-2">Edit ID</th>
-              <th className="border border-gray-300 px-4 py-2">Original Question</th>
-              <th className="border border-gray-300 px-4 py-2">Suggested Question</th>
-              <th className="border border-gray-300 px-4 py-2">Original Answer</th>
-              <th className="border border-gray-300 px-4 py-2">Suggested Answer</th>
-              <th className="border border-gray-300 px-4 py-2">Original Multiple Choice</th>
-              <th className="border border-gray-300 px-4 py-2">Suggested Multiple Choice</th>
-              <th className="border border-gray-300 px-4 py-2">Original Difficulty</th>
-              <th className="border border-gray-300 px-4 py-2">Suggested Difficulty</th>
-              <th className="border border-gray-300 px-4 py-2">Original Verses</th>
-              <th className="border border-gray-300 px-4 py-2">Suggested Verses</th>
-              <th className="border border-gray-300 px-4 py-2">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {edits.map(({ suggested, original }) => (
-              <tr key={suggested.id} className="hover:bg-gray-50">
-                <td className="border border-gray-300 px-4 py-2">{suggested.id}</td>
-                <td className="border border-gray-300 px-4 py-2">{original?.question || "—"}</td>
-                <td className="border border-gray-300 px-4 py-2">{suggested.question}</td>
-                <td className="border border-gray-300 px-4 py-2">{original?.answer || "—"}</td>
-                <td className="border border-gray-300 px-4 py-2">{suggested.answer}</td>
-                <td className="border border-gray-300 px-4 py-2">
-                  {original?.multiple_choice_answers.length
-                    ? original.multiple_choice_answers.map((m) => m.options.join(", ")).join(" | ")
-                    : "—"}
-                </td>
-                <td className="border border-gray-300 px-4 py-2">
-                  {suggested.multiple_choice_answers.length
-                    ? suggested.multiple_choice_answers.map((m) => m.options.join(", ")).join(" | ")
-                    : "—"}
-                </td>
-                <td className="border border-gray-300 px-4 py-2">{original?.difficulty || "—"}</td>
-                <td className="border border-gray-300 px-4 py-2">{suggested.difficulty}</td>
-                <td className="border border-gray-300 px-4 py-2">
-                  {original?.verse_references.length ? original.verse_references.join(", ") : "—"}
-                </td>
-                <td className="border border-gray-300 px-4 py-2">
-                  {suggested.verse_references.length ? suggested.verse_references.join(", ") : "—"}
-                </td>
-                <td className="border border-gray-300 px-4 py-2 flex gap-2">
-                  <button
-                    onClick={() => handleConfirm({ suggested, original })}
-                    className="bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600 transition">
-                    Confirm
-                  </button>
-                  <button
-                    onClick={() => handleReject(suggested.id)}
-                    className="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600 transition">
-                    Reject
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+
+      {edits.map(({ suggested, original }) => (
+        <div key={suggested.id} className="bg-white shadow-sm rounded-xl border border-gray-200 p-4 space-y-2">
+          {/* Verified Icon */}
+          <p className="text-sm font-semibold text-gray-800 flex items-center gap-2">
+            <strong>Edit ID:</strong> {suggested.id}{" "}
+            {suggested.verified ? (
+              <span className="text-green-500">✔️ Verified</span>
+            ) : (
+              <span className="text-yellow-500 animate-pulse">⏳ Pending</span>
+            )}
+          </p>
+
+          <p className="text-sm text-gray-600">
+            <strong>Question:</strong>{" "}
+            {original ? highlightNewOnly(original.question, suggested.question) : suggested.question}
+          </p>
+
+          <p className="text-sm text-gray-600">
+            <strong>Answer:</strong> {original ? highlightNewOnly(original.answer, suggested.answer) : suggested.answer}
+          </p>
+
+          <p className="text-sm text-gray-600">
+            <strong>Multiple Choice:</strong>{" "}
+            {original
+              ? arrayHighlightNewOnly(
+                  original.multiple_choice_answers.flatMap((m) => m.options),
+                  suggested.multiple_choice_answers.flatMap((m) => m.options)
+                )
+              : suggested.multiple_choice_answers.flatMap((m) => m.options).join(", ")}
+          </p>
+
+          <p className="text-sm text-gray-600">
+            <strong>Difficulty:</strong>{" "}
+            {original ? highlightNewOnly(original.difficulty, suggested.difficulty) : suggested.difficulty}
+          </p>
+
+          <p className="text-sm text-gray-600">
+            <strong>Verses:</strong>{" "}
+            {original
+              ? arrayHighlightNewOnly(original.verse_references, suggested.verse_references)
+              : suggested.verse_references.join(", ")}
+          </p>
+
+          <div className="flex gap-2 pt-2 flex-wrap">
+            <button
+              onClick={() => handleConfirm({ suggested, original })}
+              className="bg-green-500 text-white px-3 py-1 rounded-md text-sm hover:bg-green-600">
+              Confirm
+            </button>
+            <button
+              onClick={() => handleReject(suggested.id)}
+              className="bg-red-500 text-white px-3 py-1 rounded-md text-sm hover:bg-red-600">
+              Reject
+            </button>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
