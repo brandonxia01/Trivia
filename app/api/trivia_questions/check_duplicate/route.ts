@@ -31,7 +31,7 @@ export async function POST(req: Request) {
   );
 
   // Filter out unrelated results and map to Question type
-  const similar: Question[] = rows.filter((r: any) => r.distance < 0.99).map(mapQuestion);
+  const similar: Question[] = rows.filter((r: any) => r.distance < 0.67).map(mapQuestion);
 
   return new Response(JSON.stringify(similar), { status: 200 });
 }

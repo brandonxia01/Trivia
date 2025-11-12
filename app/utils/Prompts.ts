@@ -1,7 +1,5 @@
-
-
 export const prompt = (basePrompt?: string) => `
-Generate a Bible trivia question as a JSON object that exactly matches the following TypeScript interface:
+Generate a single Bible trivia question as valid JSON that matches this TypeScript interface:
 
 export interface Question {
   id: number;
@@ -11,18 +9,17 @@ export interface Question {
   difficulty: number;
 }
 
-Guidelines:
-- Make the question clear, factual, and rooted in the Bible (not opinion-based).
-- 'answer' must be the exact, correct answer.
-- 'verse_references' should list relevant verses (e.g., ["John 3:16"]).
-- 'difficulty' must be a number between 1–10, where:
-    1 = very easy (e.g., well-known facts like "Who built the ark?")
-    10 = extremely hard (e.g., rare details, obscure names, or cross-references)
-- Return only valid JSON, no explanation or markdown.
+Requirements:
+- The question must be factual and based on the Bible.
+- 'answer' must be exact and correct.
+- 'verse_references' must list the relevant Bible verses (e.g., ["John 3:16"]).
+- 'difficulty' must be a number from 1 (very easy) to 10 (extremely hard), reflecting obscurity and complexity.
+- Do not include explanations, markdown, or extra text. Return only JSON.
+- Do not include Bible verses in the question text unless absolutely necessary for clarity.
 
 ${
   basePrompt
-    ? `Base prompt: "${basePrompt}". Polish or expand on this idea to produce a well-formed Bible trivia question.`
-    : `If no base prompt is provided, create a completely random, interesting Bible trivia question.`
+    ? `Use this idea as a starting point: "${basePrompt}". Generate a question in JSON using the rules above.`
+    : `Generate a completely new Bible trivia question in JSON using the rules above.`
 }
 `;

@@ -5,6 +5,7 @@ import { MultipleChoiceAnswer } from "@/app/api/trivia_questions/QuestionsDb";
 import BibleVerseSelector from "@/app/components/BibleVerseSelector";
 import { prompt } from "@/app/utils/Prompts";
 import { difficultyExamples } from "@/app/utils/Difficulties";
+import { getBookObscurity, getRandomBibleVerse } from "@/app/utils/BibleUtils";
 
 export default function CreateQuestionPage() {
   const [question, setQuestion] = useState("");
@@ -133,6 +134,7 @@ export default function CreateQuestionPage() {
       setMultipleChoiceOptions([]);
       setOptionInput("");
       setDuplicateMatches([]);
+      setBasePrompt("");
       setOverride(false);
     } catch (err: any) {
       setMessage({ text: `Error: ${err.message}`, type: "error" });
@@ -144,7 +146,12 @@ export default function CreateQuestionPage() {
     setIsGenerating(true);
     setMessage(null);
     try {
-      const combinedPrompt = `${prompt(`User idea: ${basePrompt || "(none given)"}`)}`;
+      const randomVerse = getRandomBibleVerse();
+      const promptQuery = basePrompt ? basePrompt : `Easy question from ${randomVerse}`;
+      if (!basePrompt) {
+        setBasePrompt(promptQuery);
+      }
+      const combinedPrompt = `${prompt(`User idea: ${promptQuery}`)}`;
       const res = await fetch("/api/trivia_questions/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
