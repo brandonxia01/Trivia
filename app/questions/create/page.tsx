@@ -148,9 +148,6 @@ export default function CreateQuestionPage() {
     try {
       const randomVerse = getRandomBibleVerse();
       const promptQuery = basePrompt ? basePrompt : `Easy question from ${randomVerse}`;
-      if (!basePrompt) {
-        setBasePrompt(promptQuery);
-      }
       const combinedPrompt = `${prompt(`User idea: ${promptQuery}`)}`;
       const res = await fetch("/api/trivia_questions/generate", {
         method: "POST",
