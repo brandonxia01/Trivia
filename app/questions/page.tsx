@@ -13,20 +13,20 @@ export default function QuestionsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 50;
 
-  useEffect(() => {
-    async function fetchQuestions() {
-      try {
-        const res = await fetch("/api/trivia_questions");
-        if (!res.ok) throw new Error("Failed to fetch questions");
-        const data: Question[] = await res.json();
-        setQuestions(data);
-      } catch (err: any) {
-        setError(err.message || "Unknown error");
-      } finally {
-        setLoading(false);
-      }
+  async function fetchQuestions() {
+    try {
+      const res = await fetch("/api/trivia_questions");
+      if (!res.ok) throw new Error("Failed to fetch questions");
+      const data: Question[] = await res.json();
+      setQuestions(data);
+    } catch (err: any) {
+      setError(err.message || "Unknown error");
+    } finally {
+      setLoading(false);
     }
+  }
 
+  useEffect(() => {
     fetchQuestions();
   }, []);
 
@@ -59,6 +59,32 @@ export default function QuestionsPage() {
     setEditValues({});
   };
 
+  const deleteQuestion = async (id: number) => {
+    if (!confirm("Are you sure you want to delete this question?")) return;
+
+    try {
+      const res = await fetch("/api/trivia_questions", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ id }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        alert(`Error deleting question: ${data.error}`);
+        return;
+      }
+    } catch (err) {
+      console.error(err);
+      alert("An unexpected error occurred while deleting the question.");
+    } finally {
+      cancelEdit();
+      fetchQuestions();
+    }
+  };
+
   const confirmEdit = async () => {
     if (!editingId) return;
 
@@ -80,6 +106,8 @@ export default function QuestionsPage() {
       setEditValues({});
     } catch (err: any) {
       alert(`Update failed: ${err.message}`);
+    } finally {
+      fetchQuestions();
     }
   };
 
@@ -163,9 +191,9 @@ export default function QuestionsPage() {
       </div>
 
       <div className="hidden md:block overflow-x-auto">
-        <table className="min-w-full table-auto border-collapse border border-gray-300 text-sm">
+        <table className="min-w-full border-separate border-spacing-0 text-sm">
           <thead>
-            <tr className="bg-gray-100 text-left">
+            <tr className="bg-gray-50 text-left text-gray-600 text-xs uppercase tracking-wider sticky top-0">
               {[
                 "id",
                 "question",
@@ -181,77 +209,96 @@ export default function QuestionsPage() {
               ].map((key) => (
                 <th
                   key={key}
-                  className="border border-gray-300 px-3 py-2 cursor-pointer select-none hover:bg-gray-200"
+                  className={`px-2 py-2 font-semibold border-b border-gray-200 cursor-pointer hover:bg-gray-100 transition-colors select-none
+              ${
+                ["question"].includes(key)
+                  ? "w-[28%] min-w-[240px]"
+                  : ["answer"].includes(key)
+                  ? "w-[20%] min-w-[200px]"
+                  : ["multiple_choice_answers"].includes(key)
+                  ? "w-[12%] min-w-[150px]"
+                  : ["verse_references"].includes(key)
+                  ? "w-[10%] min-w-[140px]"
+                  : "w-[6%] min-w-[70px] text-center"
+              }`}
                   onClick={() => handleSort(key as keyof Question)}>
                   <div className="flex items-center justify-between">
-                    <span className="capitalize">{key.replace("_", " ")}</span>
-                    <span className="text-xs">{getSortArrow(key as keyof Question)}</span>
+                    <span>{key.replaceAll("_", " ")}</span>
+                    <span className="text-xs opacity-60">{getSortArrow(key as keyof Question)}</span>
                   </div>
                 </th>
               ))}
-              <th className="border border-gray-300 px-3 py-2">Edit</th>
+              <th className="px-2 py-2 font-semibold border-b border-gray-200 w-[7%] min-w-[90px] text-center">Edit</th>
             </tr>
           </thead>
 
-          <tbody>
-            {paginatedQuestions.map((q) => {
+          <tbody className="text-gray-800 text-[14px]">
+            {paginatedQuestions.map((q, i) => {
               const isEditing = editingId === q.id;
               return (
-                <tr key={q.id} className="hover:bg-gray-50">
-                  <td className="border border-gray-300 px-4 py-2">{q.id}</td>
+                <tr
+                  key={q.id}
+                  className={`transition-colors ${i % 2 === 0 ? "bg-white" : "bg-gray-50"} hover:bg-blue-50/40`}>
+                  {/* ID */}
+                  <td className="px-2 py-2 border-b border-gray-100 text-gray-500 text-center">{q.id}</td>
 
                   {/* Question */}
-                  <td className="border border-gray-300 px-4 py-2">
+                  <td className="px-2 py-2 border-b border-gray-100 align-top">
                     {isEditing ? (
                       <textarea
                         value={editValues.question || ""}
                         onChange={(e) => handleChange("question", e.target.value)}
-                        className="w-full border border-gray-300 rounded px-2 py-1 resize-y"
+                        className="w-full border border-gray-300 rounded-lg px-2 py-1.5 resize-y focus:ring-2 focus:ring-blue-500 outline-none"
                         rows={3}
                       />
                     ) : (
-                      q.question
+                      <div className="whitespace-pre-wrap font-medium text-gray-800 line-clamp-2">{q.question}</div>
                     )}
                   </td>
 
                   {/* Answer */}
-                  <td className="border border-gray-300 px-4 py-2">
+                  <td className="px-2 py-2 border-b border-gray-100 align-top">
                     {isEditing ? (
                       <textarea
                         value={editValues.answer || ""}
                         onChange={(e) => handleChange("answer", e.target.value)}
-                        className="w-full border border-gray-300 rounded px-2 py-1 resize-y"
+                        className="w-full border border-gray-300 rounded-lg px-2 py-1.5 resize-y focus:ring-2 focus:ring-blue-500 outline-none"
                         rows={2}
                       />
                     ) : (
-                      q.answer
+                      <div className="text-gray-700 whitespace-pre-wrap line-clamp-2">{q.answer}</div>
                     )}
                   </td>
 
-                  {/* Multiple Choice */}
-                  <td className="border border-gray-300 px-4 py-2">
+                  {/* Multiple Choice Answers (single line) */}
+                  <td className="px-2 py-2 border-b border-gray-100 text-sm align-middle">
                     {isEditing ? (
-                      <textarea
+                      <input
+                        type="text"
                         value={editValues.multiple_choice_answers?.[0]?.options.join(", ") || ""}
                         onChange={(e) =>
                           handleChange("multiple_choice_answers", [
                             { options: e.target.value.split(",").map((o) => o.trim()) },
                           ])
                         }
-                        className="w-full border border-gray-300 rounded px-2 py-1 resize-y"
-                        rows={2}
+                        className="w-full border border-gray-300 rounded-lg px-2 py-1 focus:ring-2 focus:ring-blue-500 outline-none"
                       />
                     ) : q.multiple_choice_answers.length > 0 ? (
-                      q.multiple_choice_answers.map((item) => item.options.join(", ")).join(" | ")
+                      <div
+                        className="truncate text-gray-700"
+                        title={q.multiple_choice_answers.map((m) => m.options.join(", ")).join(" | ")}>
+                        {q.multiple_choice_answers.map((m) => m.options.join(", ")).join(" | ")}
+                      </div>
                     ) : (
-                      "—"
+                      <span className="text-gray-400">—</span>
                     )}
                   </td>
 
                   {/* Verse References */}
-                  <td className="border border-gray-300 px-4 py-2">
+                  <td className="px-2 py-2 border-b border-gray-100 text-sm truncate">
                     {isEditing ? (
-                      <textarea
+                      <input
+                        type="text"
                         value={editValues.verse_references?.join(", ") || ""}
                         onChange={(e) =>
                           handleChange(
@@ -259,119 +306,85 @@ export default function QuestionsPage() {
                             e.target.value.split(",").map((v) => v.trim())
                           )
                         }
-                        className="w-full border border-gray-300 rounded px-2 py-1 resize-y"
-                        rows={2}
+                        className="w-full border border-gray-300 rounded-lg px-2 py-1 focus:ring-2 focus:ring-blue-500 outline-none"
                       />
                     ) : q.verse_references.length > 0 ? (
-                      q.verse_references.join(", ")
+                      <span title={q.verse_references.join(", ")}>{q.verse_references.join(", ")}</span>
                     ) : (
-                      "—"
+                      <span className="text-gray-400">—</span>
                     )}
                   </td>
 
                   {/* Difficulty */}
-                  <td className="border border-gray-300 px-4 py-2">
+                  <td className="px-2 py-2 border-b border-gray-100 text-center font-semibold">
                     {isEditing ? (
                       <input
                         type="number"
                         value={editValues.difficulty ?? q.difficulty}
                         onChange={(e) => handleChange("difficulty", Number(e.target.value))}
-                        className="w-full border border-gray-300 rounded px-2 py-1"
+                        className="w-14 text-center border border-gray-300 rounded-md px-1 py-0.5 focus:ring-2 focus:ring-blue-500 outline-none"
                       />
                     ) : (
-                      q.difficulty
+                      <span
+                        className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${
+                          q.difficulty <= 3
+                            ? "bg-green-100 text-green-700"
+                            : q.difficulty <= 6
+                            ? "bg-yellow-100 text-yellow-700"
+                            : "bg-red-100 text-red-700"
+                        }`}>
+                        {q.difficulty}
+                      </span>
                     )}
                   </td>
 
-                  {/* Attempts */}
-                  <td className="border border-gray-300 px-4 py-2">
-                    {isEditing ? (
-                      <input
-                        type="number"
-                        value={editValues.attempts ?? q.attempts}
-                        onChange={(e) => handleChange("attempts", Number(e.target.value))}
-                        className="w-full border border-gray-300 rounded px-2 py-1"
-                      />
-                    ) : (
-                      q.attempts
-                    )}
-                  </td>
-
-                  {/* Correct Attempts */}
-                  <td className="border border-gray-300 px-4 py-2">
-                    {isEditing ? (
-                      <input
-                        type="number"
-                        value={editValues.correct_attempts ?? q.correct_attempts}
-                        onChange={(e) => handleChange("correct_attempts", Number(e.target.value))}
-                        className="w-full border border-gray-300 rounded px-2 py-1"
-                      />
-                    ) : (
-                      q.correct_attempts
-                    )}
-                  </td>
-
-                  {/* Upvotes */}
-                  <td className="border border-gray-300 px-4 py-2">
-                    {isEditing ? (
-                      <input
-                        type="number"
-                        value={editValues.upvotes ?? q.upvotes}
-                        onChange={(e) => handleChange("upvotes", Number(e.target.value))}
-                        className="w-full border border-gray-300 rounded px-2 py-1"
-                      />
-                    ) : (
-                      q.upvotes
-                    )}
-                  </td>
-
-                  {/* Downvotes */}
-                  <td className="border border-gray-300 px-4 py-2">
-                    {isEditing ? (
-                      <input
-                        type="number"
-                        value={editValues.downvotes ?? q.downvotes}
-                        onChange={(e) => handleChange("downvotes", Number(e.target.value))}
-                        className="w-full border border-gray-300 rounded px-2 py-1"
-                      />
-                    ) : (
-                      q.downvotes
-                    )}
-                  </td>
+                  {/* Attempts / Correct / Upvotes / Downvotes */}
+                  <td className="px-2 py-2 border-b border-gray-100 text-center">{q.attempts}</td>
+                  <td className="px-2 py-2 border-b border-gray-100 text-center">{q.correct_attempts}</td>
+                  <td className="px-2 py-2 border-b border-gray-100 text-center text-green-600">{q.upvotes}</td>
+                  <td className="px-2 py-2 border-b border-gray-100 text-center text-red-600">{q.downvotes}</td>
 
                   {/* Verified */}
-                  <td className="border border-gray-300 px-4 py-2">
+                  <td className="px-2 py-2 border-b border-gray-100 text-center">
                     {q.verified ? (
-                      <span className="text-green-600 font-semibold">✔</span>
+                      <span className="inline-flex items-center justify-center px-2 py-0.5 text-xs font-medium bg-green-100 text-green-700 rounded-full">
+                        ✓
+                      </span>
                     ) : (
                       <button
-                        disabled={q.verified}
                         onClick={() => handleVerify(q.id)}
-                        className={`px-3 py-1 rounded ${
-                          q.verified ? "bg-gray-300 text-gray-600" : "bg-green-500 text-white hover:bg-green-600"
-                        }`}>
+                        className="px-2 py-0.5 rounded-md bg-green-500 text-white hover:bg-green-600 transition text-xs">
                         Verify
                       </button>
                     )}
                   </td>
 
-                  {/* Edit */}
-                  <td className="border border-gray-300 px-4 py-2">
+                  {/* Edit Buttons */}
+                  <td className="px-2 py-2 border-b border-gray-100 text-center">
                     {isEditing ? (
-                      <div className="flex gap-2">
+                      <div className="flex flex-col gap-1 justify-center">
                         <button
                           onClick={confirmEdit}
-                          className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600">
-                          Confirm
+                          className="bg-blue-500 text-white px-2 py-1 rounded-md hover:bg-blue-600 transition text-xs">
+                          Save
                         </button>
                         <button
                           onClick={cancelEdit}
-                          className="bg-gray-300 text-gray-700 px-3 py-1 rounded hover:bg-gray-400">
+                          className="bg-gray-200 text-gray-700 px-2 py-1 rounded-md hover:bg-gray-300 transition text-xs">
                           Cancel
+                        </button>
+                        <button
+                          onClick={() => deleteQuestion(q.id)}
+                          className="px-2 py-1 rounded-md bg-red-500 text-white hover:bg-red-600 transition text-xs"
+                          title="Delete">
+                          Delete
                         </button>
                       </div>
                     ) : (
-                      <button onClick={() => startEdit(q)} className="text-gray-500 hover:text-gray-700" title="Edit">
+                      <button
+                        onClick={() => startEdit(q)}
+                        className="text-gray-500 hover:text-blue-600 transition"
+                        title="Edit">
                         ✏️
                       </button>
                     )}
@@ -382,6 +395,7 @@ export default function QuestionsPage() {
           </tbody>
         </table>
       </div>
+
       {/* Mobile-friendly sort controls */}
       <div className="block md:hidden mb-4 p-3 bg-white rounded-xl shadow-md flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
@@ -422,216 +436,215 @@ export default function QuestionsPage() {
       </div>
 
       {/* Mobile-friendly cards */}
-<div className="block md:hidden space-y-4">
-  {paginatedQuestions.map((q) => {
-    const isEditing = editingId === q.id;
+      <div className="block md:hidden space-y-4">
+        {paginatedQuestions.map((q) => {
+          const isEditing = editingId === q.id;
 
-    return (
-      <div key={q.id} className="bg-white shadow-sm rounded-xl border border-gray-200 p-4 space-y-3">
-        {/* Question */}
-        {isEditing ? (
-          <div>
-            <label className="text-xs font-semibold text-gray-600 mb-1 block">Question</label>
-            <textarea
-              value={editValues.question || ""}
-              onChange={(e) => handleChange("question", e.target.value)}
-              className="w-full border border-gray-300 rounded px-2 py-1 resize-y"
-              rows={3}
-            />
-          </div>
-        ) : (
-          <p className="text-sm font-semibold text-gray-800">{q.question}</p>
-        )}
+          return (
+            <div key={q.id} className="bg-white shadow-sm rounded-xl border border-gray-200 p-4 space-y-3">
+              {/* Question */}
+              {isEditing ? (
+                <div>
+                  <label className="text-xs font-semibold text-gray-600 mb-1 block">Question</label>
+                  <textarea
+                    value={editValues.question || ""}
+                    onChange={(e) => handleChange("question", e.target.value)}
+                    className="w-full border border-gray-300 rounded px-2 py-1 resize-y"
+                    rows={3}
+                  />
+                </div>
+              ) : (
+                <p className="text-sm font-semibold text-gray-800">{q.question}</p>
+              )}
 
-        {/* Answer */}
-        {isEditing ? (
-          <div>
-            <label className="text-xs font-semibold text-gray-600 mb-1 block">Answer</label>
-            <textarea
-              value={editValues.answer || ""}
-              onChange={(e) => handleChange("answer", e.target.value)}
-              className="w-full border border-gray-300 rounded px-2 py-1 resize-y"
-              rows={2}
-            />
-          </div>
-        ) : (
-          <p className="text-sm text-gray-600">
-            <strong>Answer:</strong> {q.answer}
-          </p>
-        )}
+              {/* Answer */}
+              {isEditing ? (
+                <div>
+                  <label className="text-xs font-semibold text-gray-600 mb-1 block">Answer</label>
+                  <textarea
+                    value={editValues.answer || ""}
+                    onChange={(e) => handleChange("answer", e.target.value)}
+                    className="w-full border border-gray-300 rounded px-2 py-1 resize-y"
+                    rows={2}
+                  />
+                </div>
+              ) : (
+                <p className="text-sm text-gray-600">
+                  <strong>Answer:</strong> {q.answer}
+                </p>
+              )}
 
-        {/* Difficulty */}
-        {isEditing ? (
-          <div>
-            <label className="text-xs font-semibold text-gray-600 mb-1 block">Difficulty</label>
-            <input
-              type="number"
-              value={editValues.difficulty ?? q.difficulty}
-              onChange={(e) => handleChange("difficulty", Number(e.target.value))}
-              className="w-full border border-gray-300 rounded px-2 py-1"
-            />
-          </div>
-        ) : (
-          <p className="text-sm text-gray-600">
-            <strong>Difficulty:</strong> {q.difficulty}
-          </p>
-        )}
+              {/* Difficulty */}
+              {isEditing ? (
+                <div>
+                  <label className="text-xs font-semibold text-gray-600 mb-1 block">Difficulty</label>
+                  <input
+                    type="number"
+                    value={editValues.difficulty ?? q.difficulty}
+                    onChange={(e) => handleChange("difficulty", Number(e.target.value))}
+                    className="w-full border border-gray-300 rounded px-2 py-1"
+                  />
+                </div>
+              ) : (
+                <p className="text-sm text-gray-600">
+                  <strong>Difficulty:</strong> {q.difficulty}
+                </p>
+              )}
 
-        {/* Verse References */}
-        {isEditing ? (
-          <div>
-            <label className="text-xs font-semibold text-gray-600 mb-1 block">Verse References</label>
-            <textarea
-              value={editValues.verse_references?.join(", ") || ""}
-              onChange={(e) =>
-                handleChange(
-                  "verse_references",
-                  e.target.value.split(",").map((v) => v.trim())
-                )
-              }
-              className="w-full border border-gray-300 rounded px-2 py-1 resize-y"
-              rows={2}
-              placeholder="Comma-separated verses"
-            />
-          </div>
-        ) : (
-          <p className="text-sm text-gray-600">
-            <strong>Verses:</strong> {q.verse_references.length > 0 ? q.verse_references.join(", ") : "—"}
-          </p>
-        )}
+              {/* Verse References */}
+              {isEditing ? (
+                <div>
+                  <label className="text-xs font-semibold text-gray-600 mb-1 block">Verse References</label>
+                  <textarea
+                    value={editValues.verse_references?.join(", ") || ""}
+                    onChange={(e) =>
+                      handleChange(
+                        "verse_references",
+                        e.target.value.split(",").map((v) => v.trim())
+                      )
+                    }
+                    className="w-full border border-gray-300 rounded px-2 py-1 resize-y"
+                    rows={2}
+                    placeholder="Comma-separated verses"
+                  />
+                </div>
+              ) : (
+                <p className="text-sm text-gray-600">
+                  <strong>Verses:</strong> {q.verse_references.length > 0 ? q.verse_references.join(", ") : "—"}
+                </p>
+              )}
 
-        {/* Multiple Choice */}
-        {isEditing ? (
-          <div>
-            <label className="text-xs font-semibold text-gray-600 mb-1 block">Multiple Choice Options</label>
-            <textarea
-              value={editValues.multiple_choice_answers?.[0]?.options.join(", ") || ""}
-              onChange={(e) =>
-                handleChange("multiple_choice_answers", [
-                  { options: e.target.value.split(",").map((o) => o.trim()) },
-                ])
-              }
-              className="w-full border border-gray-300 rounded px-2 py-1 resize-y"
-              rows={2}
-              placeholder="Comma-separated options"
-            />
-          </div>
-        ) : q.multiple_choice_answers.length > 0 ? (
-          <p className="text-sm text-gray-600">
-            <strong>Options:</strong>{" "}
-            {q.multiple_choice_answers.map((item) => item.options.join(", ")).join(" | ")}
-          </p>
-        ) : null}
+              {/* Multiple Choice */}
+              {isEditing ? (
+                <div>
+                  <label className="text-xs font-semibold text-gray-600 mb-1 block">Multiple Choice Options</label>
+                  <textarea
+                    value={editValues.multiple_choice_answers?.[0]?.options.join(", ") || ""}
+                    onChange={(e) =>
+                      handleChange("multiple_choice_answers", [
+                        { options: e.target.value.split(",").map((o) => o.trim()) },
+                      ])
+                    }
+                    className="w-full border border-gray-300 rounded px-2 py-1 resize-y"
+                    rows={2}
+                    placeholder="Comma-separated options"
+                  />
+                </div>
+              ) : q.multiple_choice_answers.length > 0 ? (
+                <p className="text-sm text-gray-600">
+                  <strong>Options:</strong>{" "}
+                  {q.multiple_choice_answers.map((item) => item.options.join(", ")).join(" | ")}
+                </p>
+              ) : null}
 
-        {/* Stats and Verified */}
-        <div className="grid grid-cols-2 gap-2">
-          <p className="text-sm text-gray-600">
-            <strong>Attempts:</strong> {isEditing ? (
-              <input
-                type="number"
-                value={editValues.attempts ?? q.attempts}
-                onChange={(e) => handleChange("attempts", Number(e.target.value))}
-                className="border border-gray-300 rounded px-2 py-1 w-full"
-              />
-            ) : (
-              q.attempts
-            )}
-          </p>
+              {/* Stats and Verified */}
+              <div className="grid grid-cols-2 gap-2">
+                <p className="text-sm text-gray-600">
+                  <strong>Attempts:</strong>{" "}
+                  {isEditing ? (
+                    <input
+                      type="number"
+                      value={editValues.attempts ?? q.attempts}
+                      onChange={(e) => handleChange("attempts", Number(e.target.value))}
+                      className="border border-gray-300 rounded px-2 py-1 w-full"
+                    />
+                  ) : (
+                    q.attempts
+                  )}
+                </p>
 
-          <p className="text-sm text-gray-600">
-            <strong>Correct:</strong> {isEditing ? (
-              <input
-                type="number"
-                value={editValues.correct_attempts ?? q.correct_attempts}
-                onChange={(e) => handleChange("correct_attempts", Number(e.target.value))}
-                className="border border-gray-300 rounded px-2 py-1 w-full"
-              />
-            ) : (
-              q.correct_attempts
-            )}
-          </p>
+                <p className="text-sm text-gray-600">
+                  <strong>Correct:</strong>{" "}
+                  {isEditing ? (
+                    <input
+                      type="number"
+                      value={editValues.correct_attempts ?? q.correct_attempts}
+                      onChange={(e) => handleChange("correct_attempts", Number(e.target.value))}
+                      className="border border-gray-300 rounded px-2 py-1 w-full"
+                    />
+                  ) : (
+                    q.correct_attempts
+                  )}
+                </p>
 
-          <p className="text-sm text-gray-600">
-            <strong>Upvotes:</strong> {isEditing ? (
-              <input
-                type="number"
-                value={editValues.upvotes ?? q.upvotes}
-                onChange={(e) => handleChange("upvotes", Number(e.target.value))}
-                className="border border-gray-300 rounded px-2 py-1 w-full"
-              />
-            ) : (
-              q.upvotes
-            )}
-          </p>
+                <p className="text-sm text-gray-600">
+                  <strong>Upvotes:</strong>{" "}
+                  {isEditing ? (
+                    <input
+                      type="number"
+                      value={editValues.upvotes ?? q.upvotes}
+                      onChange={(e) => handleChange("upvotes", Number(e.target.value))}
+                      className="border border-gray-300 rounded px-2 py-1 w-full"
+                    />
+                  ) : (
+                    q.upvotes
+                  )}
+                </p>
 
-          <p className="text-sm text-gray-600">
-            <strong>Downvotes:</strong> {isEditing ? (
-              <input
-                type="number"
-                value={editValues.downvotes ?? q.downvotes}
-                onChange={(e) => handleChange("downvotes", Number(e.target.value))}
-                className="border border-gray-300 rounded px-2 py-1 w-full"
-              />
-            ) : (
-              q.downvotes
-            )}
-          </p>
+                <p className="text-sm text-gray-600">
+                  <strong>Downvotes:</strong>{" "}
+                  {isEditing ? (
+                    <input
+                      type="number"
+                      value={editValues.downvotes ?? q.downvotes}
+                      onChange={(e) => handleChange("downvotes", Number(e.target.value))}
+                      className="border border-gray-300 rounded px-2 py-1 w-full"
+                    />
+                  ) : (
+                    q.downvotes
+                  )}
+                </p>
 
-          {/* Verified Status */}
-          <p className="text-sm text-gray-600 col-span-2 flex items-center gap-1">
-            <strong>Status:</strong>{" "}
-            {q.verified ? (
-              <span className="text-green-600 font-semibold">✔ Verified</span>
-            ) : (
-              <span className="text-yellow-600 font-semibold flex items-center gap-1 animate-pulse">
-                ⏳ Pending
-              </span>
-            )}
-          </p>
-        </div>
+                {/* Verified Status */}
+                <p className="text-sm text-gray-600 col-span-2 flex items-center gap-1">
+                  <strong>Status:</strong>{" "}
+                  {q.verified ? (
+                    <span className="text-green-600 font-semibold">✔ Verified</span>
+                  ) : (
+                    <span className="text-yellow-600 font-semibold flex items-center gap-1 animate-pulse">
+                      ⏳ Pending
+                    </span>
+                  )}
+                </p>
+              </div>
 
-        {/* Action buttons */}
-        <div className="flex flex-wrap gap-2 pt-2">
-          {!isEditing && !q.verified && (
-            <button
-              onClick={() => handleVerify(q.id)}
-              className="bg-green-500 text-white px-3 py-1 rounded-md text-sm hover:bg-green-600"
-            >
-              Verify
-            </button>
-          )}
+              {/* Action buttons */}
+              <div className="flex flex-wrap gap-2 pt-2">
+                {!isEditing && !q.verified && (
+                  <button
+                    onClick={() => handleVerify(q.id)}
+                    className="bg-green-500 text-white px-3 py-1 rounded-md text-sm hover:bg-green-600">
+                    Verify
+                  </button>
+                )}
 
-          {!isEditing && (
-            <button
-              onClick={() => startEdit(q)}
-              className="bg-blue-500 text-white px-3 py-1 rounded-md text-sm hover:bg-blue-600"
-            >
-              Edit
-            </button>
-          )}
+                {!isEditing && (
+                  <button
+                    onClick={() => startEdit(q)}
+                    className="bg-blue-500 text-white px-3 py-1 rounded-md text-sm hover:bg-blue-600">
+                    Edit
+                  </button>
+                )}
 
-          {isEditing && (
-            <>
-              <button
-                onClick={confirmEdit}
-                className="bg-blue-600 text-white px-3 py-1 rounded-md text-sm hover:bg-blue-700"
-              >
-                Submit
-              </button>
-              <button
-                onClick={cancelEdit}
-                className="bg-gray-300 text-gray-700 px-3 py-1 rounded-md text-sm hover:bg-gray-400"
-              >
-                Cancel
-              </button>
-            </>
-          )}
-        </div>
+                {isEditing && (
+                  <>
+                    <button
+                      onClick={confirmEdit}
+                      className="bg-blue-600 text-white px-3 py-1 rounded-md text-sm hover:bg-blue-700">
+                      Submit
+                    </button>
+                    <button
+                      onClick={cancelEdit}
+                      className="bg-gray-300 text-gray-700 px-3 py-1 rounded-md text-sm hover:bg-gray-400">
+                      Cancel
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          );
+        })}
       </div>
-    );
-  })}
-</div>
-
 
       {/* Modern Pagination controls */}
       <div className="flex justify-center items-center mt-6 gap-2 flex-wrap">

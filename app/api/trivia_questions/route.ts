@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { insertQuestion, listQuestions, Question, updateQuestion } from "./QuestionsDb";
+import { deleteQuestion, insertQuestion, listQuestions, Question, updateQuestion } from "./QuestionsDb";
 import OpenAI from "openai";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -107,5 +107,23 @@ export async function PATCH(request: NextRequest) {
   } catch (err: any) {
     console.error(`Unable to update question: ${err}`);
     return NextResponse.json({ error: "Unable to update question." }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const id = Number(body.id);
+
+    if (!id || isNaN(id)) {
+      return NextResponse.json({ error: "Missing or invalid 'id' field." }, { status: 400 });
+    }
+
+    const result = await deleteQuestion(id);
+
+    return NextResponse.json({ message: `Question ${id} deleted successfully. (probably)` }, { status: 200 });
+  } catch (err: any) {
+    console.error(`Unable to delete question: ${err}`);
+    return NextResponse.json({ error: "Unable to delete question." }, { status: 500 });
   }
 }

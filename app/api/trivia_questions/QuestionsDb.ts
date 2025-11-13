@@ -116,3 +116,11 @@ export async function updateQuestion(question: Question): Promise<Question> {
   const response = await queryDb(query, values);
   return mapQuestion(response[0]);
 }
+
+export async function deleteQuestion(id: number): Promise<void> {
+  const query = `
+    DELETE FROM trivia_questions
+    WHERE id = $1
+  `;
+  await queryDb(query, [id]);
+}

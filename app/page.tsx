@@ -19,7 +19,7 @@ export default function RandomQuestionPage() {
 
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [minDifficulty, setMinDifficulty] = useState(1);
-  const [maxDifficulty, setMaxDifficulty] = useState(10);
+  const [maxDifficulty, setMaxDifficulty] = useState(7);
   const [showFilters, setShowFilters] = useState(false);
 
   // --- Suggest Edit States ---
@@ -38,6 +38,7 @@ export default function RandomQuestionPage() {
     setFeedback(null);
     setAnswerInput("");
     setSelectedOption("");
+    setError("");
     try {
       const books = selectedTags.flatMap(getBooksForTag);
       const res = await fetch("/api/trivia_questions/random", {
@@ -190,7 +191,7 @@ export default function RandomQuestionPage() {
   };
 
   return (
-    <div className="max-w-3xl mx-auto p-6 space-y-6">
+    <div className="max-w-3xl mx-auto p-6 space-y-6 mb-40">
       {/* Question count */}
       <div className="flex justify-center">
         <div className="bg-gradient-to-r from-blue-50 to-blue-100 border border-blue-200 rounded-xl shadow-md px-6 py-4 flex flex-col items-center">
@@ -206,78 +207,181 @@ export default function RandomQuestionPage() {
       <h1 className="text-2xl md:text-3xl font-semibold text-center text-gray-800">Random Question:</h1>
 
       {/* Filter toggle button */}
-      <div className="flex justify-end mb-2 space-x-2">
+      <div className="flex justify-end mb-3">
         <button
           onClick={() => setShowFilters((prev) => !prev)}
-          className="text-gray-600 hover:text-gray-800 text-sm px-2 py-1 rounded transition">
-          {showFilters ? "Hide Filters" : "Show Filters"}
+          className="flex items-center gap-2 text-gray-700 hover:text-gray-900 text-sm px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition">
+          {showFilters ? (
+            <>
+              <span>Hide Filters</span>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="w-4 h-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+              </svg>
+            </>
+          ) : (
+            <>
+              <span>Show Filters</span>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="w-4 h-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </>
+          )}
         </button>
       </div>
 
       {/* Filters */}
       {showFilters && (
-        <div className="bg-gray-50 p-4 rounded-xl shadow space-y-4 mt-2 transition-all">
+        <div className="bg-white p-6 rounded-2xl shadow-md space-y-6 mt-2 border border-gray-200 transition-all">
+          {/* Header */}
+          <div className="text-center">
+            <h1 className="text-xl font-bold text-gray-800">Question Filters</h1>
+          </div>
+
+          {/* Book Tags */}
           <div>
-            <div className="text-center pb-4">
-              <h1 className="text-2xl font-bold text-gray-800">Question Filters</h1>
-            </div>
+            <h2 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
+              Book Tags
+              <span className="text-xs text-gray-500 font-normal">(Tap to filter)</span>
+            </h2>
+
             <div className="flex flex-wrap gap-2">
-              <h2 className="font-semibold mb-2">Book Tags:</h2>
-              {bibleBookTags.map((tag) => (
-                <button
-                  key={tag.label}
-                  onClick={() => toggleTag(tag.label)}
-                  className={`px-3 py-1 rounded-full text-sm font-medium transition ${
-                    selectedTags.includes(tag.label)
-                      ? "bg-blue-600 text-white"
-                      : "bg-blue-100 text-blue-800 hover:bg-blue-200"
-                  }`}>
-                  {tag.label}
-                </button>
-              ))}
+              {bibleBookTags.map((tag) => {
+                const isSelected = selectedTags.includes(tag.label);
+                return (
+                  <button
+                    key={tag.label}
+                    onClick={() => toggleTag(tag.label)}
+                    className={`px-3.5 py-1.5 rounded-full text-sm font-medium transition-all duration-150
+            backdrop-blur-sm border ${
+              isSelected
+                ? "bg-blue-600 text-white border-blue-600 shadow-md hover:brightness-110"
+                : "bg-blue-50/60 text-blue-800 border-blue-200 hover:bg-blue-100"
+            }`}>
+                    {tag.label}
+                    {isSelected && (
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="inline-block w-3.5 h-3.5 ml-1 text-white opacity-80"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
-          <div className="flex gap-4 items-center flex-wrap">
-            <label className="flex-1 min-w-[120px]">
-              Min Difficulty:
-              <input
-                type="number"
-                min={1}
-                max={10}
-                value={minDifficulty}
-                onChange={(e) => setMinDifficulty(Number(e.target.value))}
-                className="ml-2 border rounded px-2 py-1 w-16"
-              />
-            </label>
-            <label className="flex-1 min-w-[120px]">
-              Max Difficulty:
-              <input
-                type="number"
-                min={1}
-                max={10}
-                value={maxDifficulty}
-                onChange={(e) => setMaxDifficulty(Number(e.target.value))}
-                className="ml-2 border rounded px-2 py-1 w-16"
-              />
-            </label>
+          {/* Difficulty Filter */}
+          <div>
+            <h2 className="font-semibold text-gray-700 mb-3">Difficulty</h2>
 
-            <div className="flex gap-2 flex-wrap">
-              <button
-                onClick={handleNewQuestion}
-                className="bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600 transition font-semibold">
-                New Question
-              </button>
-              <button
-                onClick={() => {
-                  setSelectedTags([]);
-                  setMinDifficulty(1);
-                  setMaxDifficulty(10);
-                }}
-                className="bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600 transition font-semibold">
-                Clear Filters
-              </button>
+            <div className="flex items-center justify-between gap-1 sm:gap-2 select-none">
+              {[...Array(10)].map((_, i) => {
+                const level = i + 1;
+                const isSelected = level >= minDifficulty && level <= maxDifficulty;
+
+                // Softer, more balanced color gradient based on intensity
+                const intensityColors = [
+                  "from-blue-200 to-blue-300",
+                  "from-sky-200 to-sky-300",
+                  "from-teal-200 to-teal-300",
+                  "from-green-200 to-green-300",
+                  "from-lime-200 to-lime-300",
+                  "from-yellow-200 to-amber-300",
+                  "from-orange-200 to-orange-300",
+                  "from-red-200 to-red-300",
+                  "from-rose-200 to-rose-300",
+                  "from-pink-200 to-pink-300",
+                ];
+
+                return (
+                  <button
+                    key={level}
+                    onClick={() => {
+                      if (minDifficulty === maxDifficulty) {
+                        // Single number case
+                        if (level === minDifficulty) {
+                          // Clicking same again resets to full range
+                          setMinDifficulty(1);
+                          setMaxDifficulty(10);
+                        } else if (level < minDifficulty) {
+                          setMinDifficulty(level);
+                        } else {
+                          setMaxDifficulty(level);
+                        }
+                      } else {
+                        // Range case
+                        if (level === minDifficulty && minDifficulty < maxDifficulty) {
+                          setMinDifficulty(minDifficulty + 1);
+                        } else if (level === maxDifficulty && maxDifficulty > minDifficulty) {
+                          setMaxDifficulty(maxDifficulty - 1);
+                        } else if (level < minDifficulty) {
+                          setMinDifficulty(level);
+                        } else if (level > maxDifficulty) {
+                          setMaxDifficulty(level);
+                        } else {
+                          // Click inside range → collapse to that number
+                          setMinDifficulty(level);
+                          setMaxDifficulty(level);
+                        }
+                      }
+                    }}
+                    className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center font-semibold text-sm transition-all duration-150
+            ${
+              isSelected
+                ? `text-gray-800 scale-110 shadow-inner bg-gradient-to-b ${intensityColors[i]} border border-gray-300 hover:brightness-95`
+                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+            }`}>
+                    {level}
+                  </button>
+                );
+              })}
             </div>
+
+            <div className="text-center text-sm text-gray-600 mt-2">
+              {minDifficulty === maxDifficulty ? (
+                <>
+                  Difficulty: <span className="font-medium">{minDifficulty}</span>
+                </>
+              ) : (
+                <>
+                  Range: <span className="font-medium">{minDifficulty}</span> –{" "}
+                  <span className="font-medium">{maxDifficulty}</span>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Buttons */}
+          <div className="flex flex-wrap justify-end gap-3 pt-2">
+            <button
+              onClick={handleNewQuestion}
+              className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition font-semibold">
+              New Question
+            </button>
+            <button
+              onClick={() => {
+                setSelectedTags([]);
+                setMinDifficulty(1);
+                setMaxDifficulty(7);
+              }}
+              className="bg-yellow-500 text-white px-4 py-2 rounded-lg hover:bg-yellow-600 transition font-semibold">
+              Clear Filters
+            </button>
           </div>
         </div>
       )}
