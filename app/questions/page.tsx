@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Question, MultipleChoiceAnswer } from "../api/trivia_questions/QuestionsDb";
+import toast from "react-hot-toast";
 
 export default function QuestionsPage() {
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -45,7 +46,7 @@ export default function QuestionsPage() {
 
       setQuestions((prev) => prev.map((q) => (q.id === id ? { ...q, verified: true } : q)));
     } catch (err: any) {
-      alert(`Verification failed: ${err.message}`);
+      toast.error(`Verification failed: ${err.message}`);
     }
   };
 
@@ -73,12 +74,12 @@ export default function QuestionsPage() {
 
       if (!res.ok) {
         const data = await res.json();
-        alert(`Error deleting question: ${data.error}`);
+        toast.error(`Error deleting question: ${data.error}`);
         return;
       }
     } catch (err) {
       console.error(err);
-      alert("An unexpected error occurred while deleting the question.");
+      toast.error("An unexpected error occurred while deleting the question.");
     } finally {
       cancelEdit();
       fetchQuestions();
@@ -105,7 +106,7 @@ export default function QuestionsPage() {
       setEditingId(null);
       setEditValues({});
     } catch (err: any) {
-      alert(`Update failed: ${err.message}`);
+      toast.error(`Update failed: ${err.message}`);
     } finally {
       fetchQuestions();
     }

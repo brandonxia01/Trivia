@@ -25,10 +25,15 @@ export default function HeaderNav() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16 items-center">
           {/* Left: Site title / logo */}
-          <a
-            href="/"
-            className="text-2xl font-extrabold text-gray-900 hover:text-blue-600 transition-colors duration-200">
-            Bible Trivia
+          <a href="/" className="flex items-center space-x-3">
+            <img
+              src="/favicon.png"
+              alt="Bible Trivia Logo"
+              className="h-14 w-14"
+            />
+            <span className="text-2xl font-extrabold text-gray-900 hover:text-blue-600 transition-colors duration-200">
+              Bible Trivia
+            </span>
           </a>
 
           {/* Desktop Nav */}

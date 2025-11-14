@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import toast from "react-hot-toast";
 
 interface MultipleChoiceAnswer {
   options: string[];
@@ -78,7 +79,7 @@ export default function SuggestedEditsPage() {
       if (!res.ok) throw new Error("Failed to delete suggested edit");
       setEdits((prev) => prev.filter((e) => e.suggested.id !== editId));
     } catch (err: any) {
-      alert(`Failed to reject edit: ${err.message}`);
+      toast.error(`Failed to reject edit: ${err.message}`);
     }
   };
 
@@ -111,7 +112,7 @@ export default function SuggestedEditsPage() {
 
       setEdits((prev) => prev.filter((e) => e.suggested.id !== edit.suggested.id));
     } catch (err: any) {
-      alert(`Failed to confirm edit: ${err.message}`);
+      toast.error(`Failed to confirm edit: ${err.message}`);
     }
   };
 

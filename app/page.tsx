@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Question } from "./api/trivia_questions/QuestionsDb";
 import { bibleBookTags, getBooksForTag } from "./utils/BibleBookTags";
 import BibleVerseSelector from "./components/BibleVerseSelector";
-import { isSimilarAnswer } from "./utils/Strings";
+import toast from "react-hot-toast";
 
 export default function RandomQuestionPage() {
   const [question, setQuestion] = useState<Question | null>(null);
@@ -182,9 +182,9 @@ export default function RandomQuestionPage() {
 
       if (!res.ok) throw new Error("Failed to submit suggested edit");
       setShowSuggestEdit(false);
-      alert("✅ Suggested edit submitted!");
+      toast.success("Suggested edit submitted!");
     } catch (err: any) {
-      alert(`Failed to submit edit: ${err.message}`);
+      toast.error(`Failed to submit edit: ${err.message}`);
     } finally {
       setSubmittingEdit(false);
     }
@@ -524,17 +524,26 @@ export default function RandomQuestionPage() {
                 selectedVerses={editValues.verse_references}
                 onChange={(verses) => handleEditChange("verse_references", verses)}
               />
-              <div className="flex items-center">
-                <p className="pr-2">Difficulty:</p>
-                <input
-                  type="number"
-                  min={1}
-                  max={10}
-                  placeholder="Difficulty"
-                  value={editValues.difficulty}
-                  onChange={(e) => handleEditChange("difficulty", Number(e.target.value))}
-                  className="w-20 border rounded px-2 py-1"
-                />
+              <div className="flex items-center gap-3">
+                <p className="font-medium text-gray-700">Difficulty:</p>
+
+                <div className="grid grid-cols-10 gap-1">
+                  {Array.from({ length: 10 }, (_, i) => i + 1).map((num) => (
+                    <button
+                      key={num}
+                      type="button"
+                      onClick={() => handleEditChange("difficulty", num)}
+                      className={`px-2 py-1 rounded-md text-sm font-semibold transition border
+                          ${
+                            editValues.difficulty === num
+                              ? "bg-blue-600 text-white border-blue-700 shadow"
+                              : "bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200"
+                          }
+                        `}>
+                      {num}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <div className="flex gap-2 mt-2">
