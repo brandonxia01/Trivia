@@ -263,10 +263,11 @@ export default function CreateQuestionPage() {
           />
         </div>
 
-        {/* Difficulty */}
-        <div className="relative max-w-xs">
-          <label className="block font-medium mb-1 flex items-center space-x-1">
-            <span>Difficulty (1–10)</span>
+        <div className="relative max-w-sm space-y-2">
+          {/* Label + Tooltip */}
+          <label className="block font-medium flex items-center gap-2">
+            <span className="text-gray-800">Difficulty</span>
+
             <div className="relative">
               <button
                 type="button"
@@ -287,12 +288,11 @@ export default function CreateQuestionPage() {
                   />
                 </svg>
               </button>
+
               {showTooltip && (
-                <div
-                  className="absolute left-6 top-0 w-72 sm:w-80 p-2 bg-gray-800 text-white text-xs rounded shadow-lg 
-                      transition-opacity z-10">
+                <div className="absolute left-6 top-0 w-72 sm:w-80 p-3 bg-gray-900 text-white text-xs rounded-xl shadow-lg z-20 animate-fadeIn">
                   {Object.entries(difficultyExamples).map(([level, desc]) => (
-                    <div key={level}>
+                    <div key={level} className="mb-1">
                       <strong>{level}:</strong> {desc}
                     </div>
                   ))}
@@ -300,15 +300,25 @@ export default function CreateQuestionPage() {
               )}
             </div>
           </label>
-          <input
-            type="number"
-            value={difficulty}
-            min={1}
-            max={10}
-            onChange={(e) => setDifficulty(Number(e.target.value))}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-            required
-          />
+
+          {/* Button Grid */}
+          <div className="grid grid-cols-10 gap-1">
+            {Array.from({ length: 10 }, (_, i) => i + 1).map((num) => (
+              <button
+                key={num}
+                type="button"
+                onClick={() => setDifficulty(num)}
+                className={`py-1 rounded-lg text-sm font-medium transition border
+          ${
+            difficulty === num
+              ? "bg-blue-600 text-white border-blue-700 shadow"
+              : "bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200"
+          }
+        `}>
+                {num}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Verse References */}

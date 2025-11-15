@@ -14,6 +14,8 @@ Requirements:
 - 'answer' must be exact and correct.
 - 'verse_references' must list the relevant Bible verses (e.g., ["John 3:16"]).
 - 'difficulty' must be a number from 1 (very easy) to 10 (extremely hard), reflecting obscurity and complexity.
+  1 = very easy (well-known facts)
+  10 = extremely hard (rare details, obscure names, or cross-references)
 - Do not include explanations, markdown, or extra text. Return only JSON.
 - Do not include Bible verses in the question text unless absolutely necessary for clarity.
 

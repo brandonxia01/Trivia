@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Question } from "./api/trivia_questions/QuestionsDb";
-import { bibleBookTags, getBooksForTag } from "./utils/BibleBookTags";
-import BibleVerseSelector from "./components/BibleVerseSelector";
+import { Question } from "../../api/trivia_questions/QuestionsDb";
+import { bibleBookTags, getBooksForTag } from "../../utils/BibleBookTags";
+import BibleVerseSelector from "../../components/BibleVerseSelector";
 import toast from "react-hot-toast";
 
 export default function RandomQuestionPage() {
@@ -16,6 +16,7 @@ export default function RandomQuestionPage() {
   const [selectedOption, setSelectedOption] = useState<string>("");
   const [questionCount, setQuestionCount] = useState<number | null>(null);
   const [loadingCount, setLoadingCount] = useState(true);
+  const [revealed, setRevealed] = useState(false);
 
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [minDifficulty, setMinDifficulty] = useState(1);
@@ -33,12 +34,21 @@ export default function RandomQuestionPage() {
   });
   const [submittingEdit, setSubmittingEdit] = useState(false);
 
+  function shuffleArray<T>(array: T[]): T[] {
+    return array
+      .map((value) => ({ value, sort: Math.random() }))
+      .sort((a, b) => a.sort - b.sort)
+      .map(({ value }) => value);
+  }
+
   const fetchRandomQuestion = async () => {
     setLoading(true);
     setFeedback(null);
     setAnswerInput("");
     setSelectedOption("");
+    setRevealed(false);
     setError("");
+
     try {
       const books = selectedTags.flatMap(getBooksForTag);
       const res = await fetch("/api/trivia_questions/random", {
@@ -48,7 +58,33 @@ export default function RandomQuestionPage() {
       });
 
       if (!res.ok) throw new Error("Failed to fetch question");
+
       const data: Question = await res.json();
+
+      // --- NEW: Fetch multiple choice options from your new API ---
+      const mcRes = await fetch("/api/trivia_questions/mc_answers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          question: data.question,
+          correctAnswer: data.answer,
+        }),
+      });
+
+      let multipleChoiceOptions: string[] = [];
+
+      if (mcRes.ok) {
+        const mcData = await mcRes.json();
+        // Combine: correct + wrong answers, then shuffle
+        multipleChoiceOptions = shuffleArray([data.answer, ...mcData.options]);
+      } else {
+        console.error("MC API failed, fallback to correct only");
+        multipleChoiceOptions = [data.answer];
+      }
+
+      // Attach MC options onto the question object
+      data.multiple_choice_answers = [{ options: multipleChoiceOptions, correct: data.answer }];
+
       setQuestion(data);
     } catch (err: any) {
       setError(err.message || "Unknown error");
@@ -83,56 +119,21 @@ export default function RandomQuestionPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!question || feedback) return;
+    if (!question || revealed) return;
 
-    let isCorrect = false;
+    setRevealed(true);
 
-    try {
-      if (answerInput.trim()) {
-        setLoadingAnswer(true); // start loading
+    const isCorrect = selectedOption === question.answer;
 
-        // Only call the similarity API if the input is non-empty
-        const similarityRes = await fetch("/api/similar", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            userInput: answerInput.trim(),
-            correctAnswer: question.answer,
-          }),
-        });
-
-        if (!similarityRes.ok) {
-          console.error("Similarity API failed:", await similarityRes.text());
-          setFeedback("⚠️ Error checking your answer. Try again.");
-          return;
-        }
-
-        const similarityData = await similarityRes.json();
-        isCorrect = similarityData.similar;
-      } else {
-        // Empty input, automatically treat as incorrect
-        isCorrect = false;
-      }
-
-      // Show feedback
-      setLoadingAnswer(false); // stop loading
-      setFeedback(isCorrect ? `✅ Correct! ${question.answer}` : `❌ Incorrect: ${question.answer}`);
-
-      // Record the attempt
-      await fetch("/api/trivia_questions/answered", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: question.id,
-          correct: isCorrect,
-        }),
-      });
-    } catch (err) {
-      console.error("Error submitting answer:", err);
-      setFeedback("⚠️ Error submitting your answer. Try again.");
-    } finally {
-      setLoadingAnswer(false); // stop loading
-    }
+    // Record attempt
+    await fetch("/api/trivia_questions/answered", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: question.id,
+        correct: isCorrect,
+      }),
+    });
   };
 
   const handleNewQuestion = () => fetchRandomQuestion();
@@ -204,7 +205,7 @@ export default function RandomQuestionPage() {
           <span className="text-gray-500 text-sm"> and counting</span>
         </div>
       </div>
-      <h1 className="text-2xl md:text-3xl font-semibold text-center text-gray-800">Random Question:</h1>
+      <h1 className="text-2xl md:text-3xl font-semibold text-center text-gray-800">Multiple Choice Mode</h1>
 
       {/* Filter toggle button */}
       <div className="flex justify-end mb-3">
@@ -404,14 +405,25 @@ export default function RandomQuestionPage() {
               {question.multiple_choice_answers[0].options.map((opt) => (
                 <li
                   key={opt}
-                  className={`px-3 py-2 border rounded cursor-pointer text-center transition ${
-                    selectedOption === opt
-                      ? "bg-blue-200 border-blue-400 font-semibold"
-                      : "bg-gray-50 hover:bg-gray-100"
-                  }`}
+                  className={`
+                    px-3 py-2 border rounded cursor-pointer text-center transition
+                    ${
+                      revealed
+                        ? opt === question.answer
+                          ? "bg-green-200 border-green-500 font-semibold" // correct
+                          : selectedOption === opt
+                          ? "bg-red-200 border-red-500 font-semibold" // wrong selected
+                          : "bg-gray-100 border-gray-300" // other options
+                        : selectedOption === opt
+                        ? "bg-blue-200 border-blue-400 font-semibold" // selected before reveal
+                        : "bg-gray-50 hover:bg-gray-100" // neutral
+                    }
+                  `}
                   onClick={() => {
+                    if (revealed) return; // prevent re-selecting after reveal
                     setAnswerInput(opt);
                     setSelectedOption(opt);
+                    // setRevealed(true); // instantly reveal correctness
                   }}>
                   {opt}
                 </li>
@@ -421,17 +433,6 @@ export default function RandomQuestionPage() {
 
           {/* Answer Input */}
           <form onSubmit={handleSubmit} className="flex flex-col gap-2">
-            <input
-              type="text"
-              placeholder="Your answer"
-              value={answerInput}
-              onChange={(e) => {
-                setAnswerInput(e.target.value);
-                setSelectedOption("");
-              }}
-              className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-              disabled={loadingAnswer} // optionally disable input while checking
-            />
             <button
               type="submit"
               className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition font-semibold"
@@ -444,12 +445,7 @@ export default function RandomQuestionPage() {
           {feedback && (
             <div className="mt-6 text-center">
               <p className="text-lg font-medium">{feedback}</p>
-              {feedback.startsWith("❌") && (
-                <p className="text-sm text-gray-500 mt-2 italic">
-                  (Note: The app checks if your answer is close enough, so it’s possible your answer is still correct
-                  but worded differently.)
-                </p>
-              )}
+
               {question?.verse_references?.length > 0 && (
                 <div className="mt-3 text-gray-700">
                   <p className="font-semibold mb-1">📖 Verse References:</p>
