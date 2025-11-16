@@ -263,6 +263,7 @@ export default function CreateQuestionPage() {
           />
         </div>
 
+        {/* Difficulty */}
         <div className="relative max-w-sm space-y-2">
           {/* Label + Tooltip */}
           <label className="block font-medium flex items-center gap-2">

@@ -1,29 +1,31 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Question } from "../../api/trivia_questions/QuestionsDb";
-import { bibleBookTags, getBooksForTag } from "../../utils/BibleBookTags";
-import BibleVerseSelector from "../../components/BibleVerseSelector";
+import { Question } from "../api/trivia_questions/QuestionsDb";
+import { bibleBookTags, getBooksForTag } from "../utils/BibleBookTags";
+import BibleVerseSelector from "../components/BibleVerseSelector";
 import toast from "react-hot-toast";
 
 export default function MultipleChoiceModePage() {
-  const [question, setQuestion] = useState<Question | null>(null);
-  const [answerInput, setAnswerInput] = useState("");
-  const [feedback, setFeedback] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  // Preload system
+  const [currentQ, setCurrentQ] = useState<Question | null>(null);
+  const [onDeckQ, setOnDeckQ] = useState<Question | null>(null);
+
+  // UI state
+  const [selectedOption, setSelectedOption] = useState<string>("");
+  const [revealed, setRevealed] = useState(false);
+  const [loading, setLoading] = useState(true); // page-level loading while initial preload
+  const [loadingNext, setLoadingNext] = useState(false); // when fetching next on-deck
   const [loadingAnswer, setLoadingAnswer] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [selectedOption, setSelectedOption] = useState<string>("");
-  const [questionCount, setQuestionCount] = useState<number | null>(null);
-  const [loadingCount, setLoadingCount] = useState(true);
-  const [revealed, setRevealed] = useState(false);
 
+  // Counts + filters
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [minDifficulty, setMinDifficulty] = useState(1);
   const [maxDifficulty, setMaxDifficulty] = useState(7);
   const [showFilters, setShowFilters] = useState(false);
 
-  // --- Suggest Edit States ---
+  // Suggest edit states
   const [showSuggestEdit, setShowSuggestEdit] = useState(false);
   const [editValues, setEditValues] = useState({
     question: "",
@@ -34,6 +36,7 @@ export default function MultipleChoiceModePage() {
   });
   const [submittingEdit, setSubmittingEdit] = useState(false);
 
+  // Helpers
   function shuffleArray<T>(array: T[]): T[] {
     return array
       .map((value) => ({ value, sort: Math.random() }))
@@ -41,112 +44,150 @@ export default function MultipleChoiceModePage() {
       .map(({ value }) => value);
   }
 
-  const fetchRandomQuestion = async () => {
-    setLoading(true);
-    setFeedback(null);
-    setAnswerInput("");
-    setSelectedOption("");
-    setRevealed(false);
-    setError("");
+  // Load one question and attach MC answers
+  const loadOneCompleteQuestion = async (): Promise<Question> => {
+    const books = selectedTags.flatMap(getBooksForTag);
+    const res = await fetch("/api/trivia_questions/random", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ books, minDifficulty, maxDifficulty }),
+    });
 
+    if (!res.ok) {
+      throw new Error("Failed to fetch question");
+    }
+
+    const data: Question = await res.json();
+
+    // Generate MC answers
     try {
-      const books = selectedTags.flatMap(getBooksForTag);
-      const res = await fetch("/api/trivia_questions/random", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ books, minDifficulty, maxDifficulty }),
-      });
-
-      if (!res.ok) throw new Error("Failed to fetch question");
-
-      const data: Question = await res.json();
-
-      // --- NEW: Fetch multiple choice options from your new API ---
       const mcRes = await fetch("/api/trivia_questions/mc_answers", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          question: data.question,
-          correctAnswer: data.answer,
-        }),
+        body: JSON.stringify({ question: data.question, correctAnswer: data.answer }),
       });
 
       let multipleChoiceOptions: string[] = [];
 
       if (mcRes.ok) {
         const mcData = await mcRes.json();
-        // Combine: correct + wrong answers, then shuffle
-        multipleChoiceOptions = shuffleArray([data.answer, ...mcData.options]);
+        multipleChoiceOptions = shuffleArray([data.answer, ...(mcData.options || [])]);
       } else {
-        console.error("MC API failed, fallback to correct only");
+        console.warn("MC API failed, falling back to correct-only");
         multipleChoiceOptions = [data.answer];
       }
 
-      // Attach MC options onto the question object
       data.multiple_choice_answers = [{ options: multipleChoiceOptions, correct: data.answer }];
+    } catch (err) {
+      console.error("Error generating MC options, fallback to correct only", err);
+      data.multiple_choice_answers = [{ options: [data.answer], correct: data.answer }];
+    }
 
-      setQuestion(data);
+    return data;
+  };
+
+  // Preload initial current + on-deck
+  const preloadInitial = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const q1 = await loadOneCompleteQuestion();
+      const q2 = await loadOneCompleteQuestion();
+      setCurrentQ(q1);
+      setOnDeckQ(q2);
+
+      // Reset UI state
+      setSelectedOption("");
+      setRevealed(false);
     } catch (err: any) {
-      setError(err.message || "Unknown error");
+      console.error("Initial preload failed:", err);
+      setError(err.message || "Failed to load questions.");
     } finally {
       setLoading(false);
     }
   };
 
-  // Fetch the total number of questions
-  const fetchQuestionCount = async () => {
-    setLoadingCount(true);
+  useEffect(() => {
+    // initial load
+    preloadInitial();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // note: if you want filters to refetch, you can add them as deps
+
+  // Swap to on-deck and preload another in background
+  const handleNextQuestion = async () => {
+    if (!onDeckQ) {
+      // if no on-deck, try to load one quickly
+      setLoadingNext(true);
+      try {
+        const q = await loadOneCompleteQuestion();
+        setCurrentQ(q);
+      } catch (err) {
+        console.error(err);
+        setError("Failed to load next question.");
+      } finally {
+        setLoadingNext(false);
+        setSelectedOption("");
+        setRevealed(false);
+      }
+      return;
+    }
+
+    // Promote onDeck -> current immediately (instant)
+    setCurrentQ(onDeckQ);
+    setSelectedOption("");
+    setRevealed(false);
+
+    // Preload another onDeck in background
+    setLoadingNext(true);
     try {
-      const res = await fetch("/api/trivia_questions/count");
-      if (!res.ok) throw new Error("Failed to fetch question count");
-      const data = await res.json();
-      setQuestionCount(data.count);
+      const newOnDeck = await loadOneCompleteQuestion();
+      setOnDeckQ(newOnDeck);
     } catch (err) {
-      console.error(err);
+      console.error("Failed to preload on-deck:", err);
+      setOnDeckQ(null);
     } finally {
-      setLoadingCount(false);
+      setLoadingNext(false);
     }
   };
 
-  useEffect(() => {
-    fetchRandomQuestion();
-    fetchQuestionCount();
-  }, []);
+  // Reveal answer (user presses Reveal Answer)
+  const handleReveal = async () => {
+    if (!currentQ || revealed) return;
+    setLoadingAnswer(true);
+    setRevealed(true);
 
+    const isCorrect = selectedOption === currentQ.answer;
+
+    try {
+      await fetch("/api/trivia_questions/answered", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: currentQ.id,
+          correct: isCorrect,
+        }),
+      });
+    } catch (err) {
+      console.error("Failed to record attempt:", err);
+    } finally {
+      setLoadingAnswer(false);
+    }
+  };
+
+  // Toggle tag helper
   const toggleTag = (tag: string) => {
     setSelectedTags((prev) => (prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!question || revealed) return;
-
-    setRevealed(true);
-
-    const isCorrect = selectedOption === question.answer;
-
-    // Record attempt
-    await fetch("/api/trivia_questions/answered", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        id: question.id,
-        correct: isCorrect,
-      }),
-    });
-  };
-
-  const handleNewQuestion = () => fetchRandomQuestion();
-
-  // --- Suggest Edit Handlers ---
+  // Suggest edit helpers (attach to currentQ)
   const openSuggestEdit = () => {
-    if (!question) return;
+    if (!currentQ) return;
     setEditValues({
-      question: question.question,
-      answer: question.answer,
-      multiple_choice: question.multiple_choice_answers[0]?.options || [],
-      verse_references: question.verse_references,
-      difficulty: question.difficulty,
+      question: currentQ.question,
+      answer: currentQ.answer,
+      multiple_choice: currentQ.multiple_choice_answers?.[0]?.options || [],
+      verse_references: currentQ.verse_references || [],
+      difficulty: currentQ.difficulty,
     });
     setShowSuggestEdit(true);
   };
@@ -156,11 +197,11 @@ export default function MultipleChoiceModePage() {
   };
 
   const submitSuggestedEdit = async () => {
-    if (!question) return;
+    if (!currentQ) return;
     setSubmittingEdit(true);
     try {
       const payload = {
-        question_id: question.id,
+        question_id: currentQ.id,
         question: editValues.question,
         answer: editValues.answer,
         multiple_choice_answers: editValues.multiple_choice.length
@@ -168,10 +209,10 @@ export default function MultipleChoiceModePage() {
           : [],
         verse_references: editValues.verse_references,
         difficulty: editValues.difficulty,
-        attempts: question.attempts,
-        correct_attempts: question.correct_attempts,
-        upvotes: question.upvotes,
-        downvotes: question.downvotes,
+        attempts: currentQ.attempts,
+        correct_attempts: currentQ.correct_attempts,
+        upvotes: currentQ.upvotes,
+        downvotes: currentQ.downvotes,
         verified: false,
       };
 
@@ -191,23 +232,16 @@ export default function MultipleChoiceModePage() {
     }
   };
 
+  // Derived convenience values for UI
+  const currentOptions = currentQ?.multiple_choice_answers?.[0]?.options || [];
+
+  // Rendering
   return (
     <div className="max-w-3xl mx-auto p-6 space-y-6 mb-40">
-      {/* Question count */}
-      <div className="flex justify-center">
-        <div className="bg-gradient-to-r from-blue-50 to-blue-100 border border-blue-200 rounded-xl shadow-md px-6 py-4 flex flex-col items-center">
-          <span className="text-gray-500 text-sm">Total Questions</span>
-          {loadingCount ? (
-            <span className="text-blue-600 font-bold text-2xl animate-pulse">Counting...</span>
-          ) : (
-            <span className="text-blue-600 font-bold text-2xl">{questionCount}</span>
-          )}
-          <span className="text-gray-500 text-sm"> and counting</span>
-        </div>
-      </div>
-      <h1 className="text-2xl md:text-3xl font-semibold text-center text-gray-800">Multiple Choice Mode</h1>
+      <h1 className="text-2xl md:text-3xl font-semibold text-center text-gray-800">Welcome To Bible Trivia</h1>
+      <h1 className="text-xl md:text-2xl font-semibold text-center text-gray-800">Multiple Choice Mode</h1>
 
-      {/* Filter toggle button */}
+      {/* Filter toggle */}
       <div className="flex justify-end mb-3">
         <button
           onClick={() => setShowFilters((prev) => !prev)}
@@ -243,12 +277,10 @@ export default function MultipleChoiceModePage() {
       {/* Filters */}
       {showFilters && (
         <div className="bg-white p-6 rounded-2xl shadow-md space-y-6 mt-2 border border-gray-200 transition-all">
-          {/* Header */}
           <div className="text-center">
             <h1 className="text-xl font-bold text-gray-800">Question Filters</h1>
           </div>
 
-          {/* Book Tags */}
           <div>
             <h2 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
               Book Tags
@@ -262,12 +294,11 @@ export default function MultipleChoiceModePage() {
                   <button
                     key={tag.label}
                     onClick={() => toggleTag(tag.label)}
-                    className={`px-3.5 py-1.5 rounded-full text-sm font-medium transition-all duration-150
-            backdrop-blur-sm border ${
-              isSelected
-                ? "bg-blue-600 text-white border-blue-600 shadow-md hover:brightness-110"
-                : "bg-blue-50/60 text-blue-800 border-blue-200 hover:bg-blue-100"
-            }`}>
+                    className={`px-3.5 py-1.5 rounded-full text-sm font-medium transition-all duration-150 backdrop-blur-sm border ${
+                      isSelected
+                        ? "bg-blue-600 text-white border-blue-600 shadow-md hover:brightness-110"
+                        : "bg-blue-50/60 text-blue-800 border-blue-200 hover:bg-blue-100"
+                    }`}>
                     {tag.label}
                     {isSelected && (
                       <svg
@@ -286,7 +317,6 @@ export default function MultipleChoiceModePage() {
             </div>
           </div>
 
-          {/* Difficulty Filter */}
           <div>
             <h2 className="font-semibold text-gray-700 mb-3">Difficulty</h2>
 
@@ -295,7 +325,6 @@ export default function MultipleChoiceModePage() {
                 const level = i + 1;
                 const isSelected = level >= minDifficulty && level <= maxDifficulty;
 
-                // Softer, more balanced color gradient based on intensity
                 const intensityColors = [
                   "from-blue-200 to-blue-300",
                   "from-sky-200 to-sky-300",
@@ -314,9 +343,7 @@ export default function MultipleChoiceModePage() {
                     key={level}
                     onClick={() => {
                       if (minDifficulty === maxDifficulty) {
-                        // Single number case
                         if (level === minDifficulty) {
-                          // Clicking same again resets to full range
                           setMinDifficulty(1);
                           setMaxDifficulty(10);
                         } else if (level < minDifficulty) {
@@ -325,7 +352,6 @@ export default function MultipleChoiceModePage() {
                           setMaxDifficulty(level);
                         }
                       } else {
-                        // Range case
                         if (level === minDifficulty && minDifficulty < maxDifficulty) {
                           setMinDifficulty(minDifficulty + 1);
                         } else if (level === maxDifficulty && maxDifficulty > minDifficulty) {
@@ -335,18 +361,16 @@ export default function MultipleChoiceModePage() {
                         } else if (level > maxDifficulty) {
                           setMaxDifficulty(level);
                         } else {
-                          // Click inside range → collapse to that number
                           setMinDifficulty(level);
                           setMaxDifficulty(level);
                         }
                       }
                     }}
-                    className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center font-semibold text-sm transition-all duration-150
-            ${
-              isSelected
-                ? `text-gray-800 scale-110 shadow-inner bg-gradient-to-b ${intensityColors[i]} border border-gray-300 hover:brightness-95`
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-            }`}>
+                    className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center font-semibold text-sm transition-all duration-150 ${
+                      isSelected
+                        ? `text-gray-800 scale-110 shadow-inner bg-gradient-to-b ${intensityColors[i]} border border-gray-300 hover:brightness-95`
+                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                    }`}>
                     {level}
                   </button>
                 );
@@ -367,10 +391,9 @@ export default function MultipleChoiceModePage() {
             </div>
           </div>
 
-          {/* Buttons */}
           <div className="flex flex-wrap justify-end gap-3 pt-2">
             <button
-              onClick={handleNewQuestion}
+              onClick={handleNextQuestion}
               className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition font-semibold">
               New Question
             </button>
@@ -387,98 +410,103 @@ export default function MultipleChoiceModePage() {
         </div>
       )}
 
-      {/* Question Card */}
+      {/* Main card */}
       {loading ? (
-        <div className="p-4 text-center">Loading question...</div>
+        <div className="p-6 text-center">Loading questions...</div>
       ) : error ? (
         <div className="p-4 text-center text-red-500">{error}</div>
-      ) : !question ? (
+      ) : !currentQ ? (
         <div className="p-4 text-center">No question found.</div>
       ) : (
         <div className="bg-white p-6 rounded-xl shadow border border-gray-200">
-          <p className="text-lg font-medium">{question.question}</p>
-          <p className="text-md font-medium text-gray-500">{`Difficulty: ${question.difficulty}`}</p>
+          <p className="text-lg font-medium">{currentQ.question}</p>
+          <p className="text-md font-medium text-gray-500">{`Difficulty: ${currentQ.difficulty}`}</p>
 
-          {/* Multiple Choice */}
-          {question.multiple_choice_answers.length > 0 && (
-            <ul className="grid grid-cols-1 gap-2 mb-4">
-              {question.multiple_choice_answers[0].options.map((opt) => (
-                <li
-                  key={opt}
-                  className={`
-                    px-3 py-2 border rounded cursor-pointer text-center transition
-                    ${
-                      revealed
-                        ? opt === question.answer
-                          ? "bg-green-200 border-green-500 font-semibold" // correct
-                          : selectedOption === opt
-                          ? "bg-red-200 border-red-500 font-semibold" // wrong selected
-                          : "bg-gray-100 border-gray-300" // other options
-                        : selectedOption === opt
-                        ? "bg-blue-200 border-blue-400 font-semibold" // selected before reveal
-                        : "bg-gray-50 hover:bg-gray-100" // neutral
-                    }
-                  `}
-                  onClick={() => {
-                    if (revealed) return; // prevent re-selecting after reveal
-                    setAnswerInput(opt);
-                    setSelectedOption(opt);
-                    // setRevealed(true); // instantly reveal correctness
-                  }}>
-                  {opt}
-                </li>
-              ))}
+          {/* MC Options */}
+          {currentOptions.length > 0 && (
+            <ul className="grid grid-cols-1 gap-2 mb-4 select-none">
+              {currentOptions.map((opt) => {
+                const isCorrect = opt === currentQ.answer;
+                const isSelected = selectedOption === opt;
+
+                // Determine styles
+                const className = revealed
+                  ? isCorrect
+                    ? "bg-green-200 border-green-500 font-semibold text-gray-900 animate-pop"
+                    : isSelected
+                    ? "bg-red-200 border-red-500 font-semibold text-gray-900 animate-shake"
+                    : "bg-gray-100 border-gray-300 text-gray-700 opacity-80"
+                  : isSelected
+                  ? "bg-blue-200 border-blue-400 font-semibold text-gray-900 animate-pop"
+                  : "bg-gray-50 hover:bg-gray-100";
+
+                // Determine icons
+                let icon = "◻️";
+                if (revealed) {
+                  if (isCorrect) icon = "✅";
+                  else if (isSelected) icon = "✖️";
+                } else {
+                  if (isSelected) icon = "👉";
+                }
+
+                return (
+                  <li
+                    key={opt}
+                    className={`px-3 py-2 border rounded cursor-pointer text-center flex items-center justify-center gap-2 transition ${className}`}
+                    onClick={() => {
+                      if (revealed) return;
+                      setSelectedOption(opt);
+                    }}>
+                    <span className="text-lg">{icon}</span>
+                    <span>{opt}</span>
+                  </li>
+                );
+              })}
             </ul>
           )}
 
-          {/* Answer Input */}
-          <form onSubmit={handleSubmit} className="flex flex-col gap-2">
-            <button
-              type="submit"
-              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition font-semibold"
-              disabled={loadingAnswer} // disable button while checking
-            >
-              {loadingAnswer ? "Checking your answer..." : "Reveal Answer"}
-            </button>
-          </form>
-
-          {feedback && (
-            <div className="mt-6 text-center">
-              <p className="text-lg font-medium">{feedback}</p>
-
-              {question?.verse_references?.length > 0 && (
-                <div className="mt-3 text-gray-700">
-                  <p className="font-semibold mb-1">📖 Verse References:</p>
-                  <ul className="list-none space-y-1">
-                    {question.verse_references.map((ref, i) => (
-                      <li key={i}>{ref}</li>
-                    ))}
-                  </ul>
-                </div>
+          {/* Reveal / Next controls */}
+          <div className="mt-4 flex items-center justify-between w-full">
+            {/* Centered Reveal / Next button */}
+            <div className="flex-1"></div>
+            <div className="flex-1">
+              {!revealed ? (
+                <button
+                  onClick={handleReveal}
+                  className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition font-semibold disabled:opacity-50">
+                  {loadingAnswer ? "Revealing..." : "Reveal Answer"}
+                </button>
+              ) : (
+                <button
+                  onClick={handleNextQuestion}
+                  disabled={loadingNext}
+                  className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition font-semibold disabled:opacity-50">
+                  {loadingNext ? "Loading next..." : "Next Question"}
+                </button>
               )}
             </div>
-          )}
 
-          <div className="flex items-center justify-between mt-6 gap-3">
-            {/* Left spacer to keep Next Question centered */}
-            <div className="flex-1"></div>
-
-            {/* Center button */}
-            <button
-              onClick={handleNewQuestion}
-              className="flex-1 max-w-[180px] px-4 py-2 rounded-lg bg-green-600 text-white font-semibold shadow hover:bg-green-700 transition mx-auto">
-              Next Question
-            </button>
-
-            {/* Right button */}
-            <div className="flex-1 flex justify-end">
+            {/* Suggest Edit button (right aligned) */}
+            <div className="flex justify-end ml-4">
               <button
                 onClick={openSuggestEdit}
-                className="w-full max-w-[180px] px-4 py-2 rounded-lg bg-yellow-200 text-gray-800 font-medium shadow hover:bg-yellow-300 transition">
+                className="bg-yellow-200 text-gray-800 px-4 py-2 rounded hover:bg-yellow-300 transition font-medium whitespace-nowrap">
                 Suggest Edit
               </button>
             </div>
           </div>
+
+          {/* Show verses once revealed */}
+          {revealed && currentQ.verse_references?.length > 0 && (
+            <div className="mt-4 text-gray-700">
+              <p className="font-semibold mb-1">📖 Verse References:</p>
+              <ul className="list-none space-y-1">
+                {currentQ.verse_references.map((ref, i) => (
+                  <li key={i}>{ref}</li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           {/* Suggest Edit Form */}
           {showSuggestEdit && (
@@ -512,11 +540,11 @@ export default function MultipleChoiceModePage() {
                 className="w-full border rounded px-2 py-1"
               />
 
-              {/* Replace verse references input with BibleVerseSelector */}
               <BibleVerseSelector
                 selectedVerses={editValues.verse_references}
                 onChange={(verses) => handleEditChange("verse_references", verses)}
               />
+
               <div className="flex items-center gap-3">
                 <p className="font-medium text-gray-700">Difficulty:</p>
 
@@ -526,13 +554,11 @@ export default function MultipleChoiceModePage() {
                       key={num}
                       type="button"
                       onClick={() => handleEditChange("difficulty", num)}
-                      className={`px-2 py-1 rounded-md text-sm font-semibold transition border
-                          ${
-                            editValues.difficulty === num
-                              ? "bg-blue-600 text-white border-blue-700 shadow"
-                              : "bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200"
-                          }
-                        `}>
+                      className={`px-2 py-1 rounded-md text-sm font-semibold transition border ${
+                        editValues.difficulty === num
+                          ? "bg-blue-600 text-white border-blue-700 shadow"
+                          : "bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200"
+                      }`}>
                       {num}
                     </button>
                   ))}
