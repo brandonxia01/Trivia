@@ -6,7 +6,7 @@ import { bibleBookTags, getBooksForTag } from "../../utils/BibleBookTags";
 import BibleVerseSelector from "../../components/BibleVerseSelector";
 import toast from "react-hot-toast";
 
-export default function RandomQuestionPage() {
+export default function MultipleChoiceModePage() {
   const [question, setQuestion] = useState<Question | null>(null);
   const [answerInput, setAnswerInput] = useState("");
   const [feedback, setFeedback] = useState<string | null>(null);
